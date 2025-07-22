@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPC PHP Toolkit - Browser Test Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007acc;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #007acc;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+        }
+        .input-group input, .input-group select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            width: 200px;
+        }
+        #output {
+            background: #222;
+            color: #0f0;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            display: none;
+            color: #007acc;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 RPC PHP Toolkit - Browser Test Client</h1>
+        
+        <div class="test-section">
+            <h3>⚙️ Configuration</h3>
+            <div class="input-group">
+                <label>Server URL:</label>
+                <input type="url" id="serverUrl" value="http://localhost:8000/basic-server.php">
+            </div>
+            <div class="input-group">
+                <label>Auth Token:</label>
+                <input type="text" id="authToken" placeholder="user123">
+            </div>
+            <button onclick="updateConfig()">Update Configuration</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Method Tests</h3>
+            
+            <button onclick="testGetTime()">🕒 Test getTime</button>
+            <button onclick="testEcho()">📢 Test Echo</button>
+            <button onclick="testCalculation()">🧮 Test Calculation</button>
+            <button onclick="testAuth()">🔐 Test Authentication</button>
+            <button onclick="testBatch()">📦 Test Batch</button>
+            <button onclick="testError()">⚠️ Test Error</button>
+            <button onclick="clearOutput()">🗑️ Clear Output</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Custom Test</h3>
+            <div class="input-group">
+                <label>Method:</label>
+                <input type="text" id="customMethod" value="public.echo">
+            </div>
+            <div class="input-group">
+                <label>JSON Parameters:</label>
+                <input type="text" id="customParams" value='{"message": "Custom test"}'>
+            </div>
+            <button onclick="testCustom()">Execute Custom Test</button>
+        </div>
+
+        <div id="status"></div>
+        <div class="loading" id="loading">⏳ Executing...</div>
+        
+        <h3>📋 Output</h3>
+        <div id="output">Welcome to the RPC PHP Toolkit test client!
+Configure the server URL and start testing.</div>
+    </div>
+
+    <script src="../src/clients/rpc-client.js"></script>
+    <script>
+        let rpcClient;
+        
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            output.textContent += `\n[${timestamp}] ${prefix} ${message}`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = 'status';
+            }, 3000);
+        }
+
+        function showLoading(show = true) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function updateConfig() {
+            const url = document.getElementById('serverUrl').value;
+            const token = document.getElementById('authToken').value;
+            
+            rpcClient = new RpcClient(url);
+            
+            if (token) {
+                rpcClient.setAuthToken(token);
+            }
+            
+            log(`Client configured for: ${url}`);
+            showStatus('Configuration updated!');
+        }
+
+        async function testGetTime() {
+            if (!rpcClient) {
+                showStatus('Configure the client first!', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                log('Testing getTime...');
+                const result = await rpcClient.call('public.getTime');
+                log(`Response: ${JSON.stringify(result, null, 2)}`, 'success');
+                showStatus('getTime test completed!');
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                showStatus('getTime test failed!', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function testEcho() {
+            if (!rpcClient) {
+                showStatus('Configure the client first!', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                log('Testing echo...');
+                const result = await rpcClient.call('public.echo', {
+                    message: 'Hello from browser! 🌟'
+                });
+                log(`Response: ${JSON.stringify(result, null, 2)}`, 'success');
+                showStatus('Echo test completed!');
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                showStatus('Echo test failed!', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function testCalculation() {
+            if (!rpcClient) {
+                showStatus('Configure the client first!', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                log('Testing calculation (15 + 27)...');
+                const result = await rpcClient.call('calc.add', {
+                    a: 15,
+                    b: 27
+                });
+                log(`Response: ${JSON.stringify(result, null, 2)}`, 'success');
+                showStatus('Calculation test completed!');
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                showStatus('Calculation test failed!', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function testAuth() {
+            if (!rpcClient) {
+                showStatus('Configure the client first!', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                log('Testing protected method...');
+                const result = await rpcClient.call('user.getProfile');
+                log(`Response: ${JSON.stringify(result, null, 2)}`, 'success');
+                showStatus('Authentication test completed!');
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                showStatus('Authentication test failed (normal if not authenticated)!', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function testBatch() {
+            if (!rpcClient) {
+                showStatus('Configure the client first!', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                log('Testing batch request...');
+                const requests = [
+                    { method: 'public.getTime', id: 'time' },
+                    { method: 'calc.add', params: { a: 5, b: 10 }, id: 'calc' },
+                    { method: 'public.echo', params: { message: 'Batch test!' }, id: 'echo' }
+                ];
+                
+                const result = await rpcClient.batch(requests);
+                log(`Batch response: ${JSON.stringify(result, null, 2)}`, 'success');
+                showStatus('Batch test completed!');
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                showStatus('Batch test failed!', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function testError() {
+            if (!rpcClient) {
+                showStatus('Configure the client first!', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                log('Testing error handling...');
+                const result = await rpcClient.call('test.error', {
+                    type: 'validation'
+                });
+                log(`Response: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Error (expected): ${error.message}`, 'error');
+                showStatus('Error test completed (error handled correctly)!');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function testCustom() {
+            if (!rpcClient) {
+                showStatus('Configure the client first!', 'error');
+                return;
+            }
+
+            const method = document.getElementById('customMethod').value;
+            const paramsStr = document.getElementById('customParams').value;
+            
+            if (!method) {
+                showStatus('Enter a method!', 'error');
+                return;
+            }
+
+            let params = {};
+            if (paramsStr) {
+                try {
+                    params = JSON.parse(paramsStr);
+                } catch (e) {
+                    showStatus('Invalid JSON parameters!', 'error');
+                    return;
+                }
+            }
+
+            showLoading(true);
+            try {
+                log(`Custom test: ${method}...`);
+                const result = await rpcClient.call(method, params);
+                log(`Response: ${JSON.stringify(result, null, 2)}`, 'success');
+                showStatus('Custom test completed!');
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                showStatus('Custom test failed!', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = 'Output cleared. Ready for new tests.';
+        }
+
+        // Initialization
+        updateConfig();
+        
+        log('RPC PHP Toolkit client initialized!');
+        log('Server configured for: ' + document.getElementById('serverUrl').value);
+    </script>
+</body>
+</html>

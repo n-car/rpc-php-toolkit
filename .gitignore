@@ -1,0 +1,64 @@
+# Composer
+/vendor/
+composer.lock
+
+# Logs
+logs/
+*.log
+
+# Build directories
+/build/
+/dist/
+
+# Coverage reports
+/coverage/
+/reports/
+clover.xml
+phpunit.xml.cache
+
+# Environment variables
+.env
+.env.test
+.env.production
+.env.local
+
+# Cache directories
+cache/
+storage/
+
+# MacOS specific
+.DS_Store
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+
+# IDE and Editor directories and files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+
+# PHP specific
+*.phar
+
+# TypeScript declaration files (if not needed)
+#*.d.ts
+
+# Optional TypeScript cache
+*.tsbuildinfo
+
+# Others
+*.bak
+*.backup
+*.orig
+
+# Coverage reports
+coverage/
+*.lcov
