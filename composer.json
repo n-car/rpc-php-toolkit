@@ -1,5 +1,6 @@
 {
     "name": "rpc-php-toolkit/rpc-php-toolkit",
+    "version": "1.0.1",
     "description": "Enterprise-ready JSON-RPC 2.0 toolkit for PHP with simplified APIs, structured logging, middleware system, schema validation, batch processing, and comprehensive BigInt/Date serialization support",
     "type": "library",
     "keywords": [

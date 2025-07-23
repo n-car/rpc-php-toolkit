@@ -41,48 +41,10 @@ An enterprise-ready JSON-RPC 2.0 library for PHP applications with simplified AP
 - **🔒 Security:** Method whitelisting, authentication, and error sanitization
 - **🎯 Performance:** Request timing, caching support, and optimized serialization
 
-## Table of Contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Advanced Usage](#advanced-usage)
-  - [Configuration Options](#configuration-options)
-  - [Schema Validation](#schema-validation)
-  - [Middleware System](#middleware-system)
-  - [Batch Requests](#batch-requests)
-  - [Structured Logging](#structured-logging)
-  - [Built-in Middleware](#built-in-middleware)
-- [JavaScript Client](#javascript-client)
-- [API Reference](#api-reference)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Caratteristiche
-
-
-## Features
-
-### Core Features
-- **JSON-RPC 2.0 Compliance:** Fully adheres to the JSON-RPC 2.0 specification
-- **Server & Client Support:** Provides server endpoints and PHP & JavaScript client classes
-- **Async Support:** Handles asynchronous operations with Promises
-- **BigInt & Date Serialization:** Robust serialization/deserialization with timezone support
-- **Cross-Platform:** Works in both browser and PHP server environments
-- **Error Handling:** Comprehensive error responses with sanitization options
-
-### Enterprise Features
-- **🔧 Structured Logging:** Configurable logging with multiple transports and levels
-- **⚡ Middleware System:** Extensible middleware with built-in rate limiting, CORS, auth
-- **✅ Schema Validation:** JSON Schema validation with schema builder utilities
-- **📦 Batch Processing:** Efficient batch request handling with concurrent processing
-- **📊 Health & Metrics:** Built-in health check endpoints and metrics
-- **🔒 Security:** Method whitelisting, authentication, and error sanitization
-- **🎯 Performance:** Request timing, caching support, and optimized serialization
+## Installation
 
 ```bash
-composer require rpc-php-toolkit
+composer require rpc-php-toolkit/rpc-php-toolkit
 ```
 
 ## Quick Start
@@ -383,6 +345,7 @@ $response = $client->get('https://localhost:8000/api/rpc');
 ```
 
 **Warning:** Disabling SSL verification exposes you to security risks. Use only in local development environments.
+
 ## Contributing
 
 1. Fork the project
