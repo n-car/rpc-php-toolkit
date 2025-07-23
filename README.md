@@ -310,19 +310,6 @@ $options = [
 - **Async Logging**: Configurable logger for different levels
 - **Caching**: Implement caching at middleware level if needed
 
-## Contributing
-
-1. Fork the project
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is distributed under the MIT License. See the `LICENSE` file for details.
-
-
 #### ⚠️ SSL and self-signed certificates in development (PHP)
 
 If you need to connect to a server with a self-signed certificate during development in PHP, you can disable SSL verification for testing purposes (not recommended in production). For example, with cURL:
