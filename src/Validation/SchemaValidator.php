@@ -230,8 +230,23 @@ class SchemaValidator
 
     private function validateDateTime(string $value): array
     {
-        $date = \DateTime::createFromFormat(\DateTime::ISO8601, $value);
-        return $date ? [] : ['Invalid DateTime (ISO8601 format)'];
+        $formats = [
+            \DateTime::ATOM,
+            \DateTime::RFC3339,
+            \DateTime::RFC3339_EXTENDED,
+            'Y-m-d\\TH:i:s\\Z',
+            'Y-m-d\\TH:i:s\\.u\\Z'
+        ];
+
+        foreach ($formats as $format) {
+            $date = \DateTime::createFromFormat($format, $value);
+
+            if ($date !== false && $date->format($format) === $value) {
+                return [];
+            }
+        }
+
+        return ['Invalid DateTime (ISO8601/RFC3339 format)'];
     }
 
     private function validateUuid(string $value): array

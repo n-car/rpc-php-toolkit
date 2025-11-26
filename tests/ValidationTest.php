@@ -118,6 +118,28 @@ class ValidationTest extends TestCase
         $this->assertNotEmpty($result);
     }
 
+    public function testValidateDateTimeFormat(): void
+    {
+        $schema = [
+            'type' => 'string',
+            'format' => 'datetime'
+        ];
+
+        $validExamples = [
+            '2024-05-01T12:30:45Z',
+            '2024-05-01T12:30:45+02:00',
+            '2024-05-01T12:30:45.123+02:00'
+        ];
+
+        foreach ($validExamples as $example) {
+            $result = $this->validator->validate($example, $schema);
+            $this->assertEmpty($result, "Expected valid datetime format for {$example}");
+        }
+
+        $result = $this->validator->validate('2024-13-01T12:30:45Z', $schema);
+        $this->assertNotEmpty($result);
+    }
+
     public function testValidateParamsWithSchema(): void
     {
         $schema = [

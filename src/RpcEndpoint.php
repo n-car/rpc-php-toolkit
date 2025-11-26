@@ -514,7 +514,7 @@ class RpcEndpoint
     private function serializeValue(mixed $value): mixed
     {
         // Handle DateTime objects
-        if ($value instanceof \DateTime) {
+        if ($value instanceof \DateTimeInterface) {
             $isoString = $value->format('c');
 
             // Warn if safe mode is disabled
@@ -524,6 +524,12 @@ class RpcEndpoint
 
             // Add D: prefix if safe mode enabled
             return $this->options['safeEnabled'] ? 'D:' . $isoString : $isoString;
+        }
+
+        // Handle non-finite floats (NaN, INF)
+        if (is_float($value) && (!is_finite($value))) {
+            $stringValue = is_nan($value) ? 'NaN' : ($value > 0 ? 'INF' : '-INF');
+            return $this->options['safeEnabled'] ? 'S:' . $stringValue : $stringValue;
         }
 
         // Handle large integers (BigInt equivalent in PHP)
@@ -540,7 +546,7 @@ class RpcEndpoint
 
         // Handle strings - add S: prefix if safe mode enabled
         if (is_string($value)) {
-            return $this->options['safeEnabled'] ? 'S:' . $value : $value;
+            return $value;
         }
 
         // Handle arrays
