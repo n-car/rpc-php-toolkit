@@ -47,14 +47,9 @@ class RateLimitMiddleware implements MiddlewareInterface
 
         // Check limit
         if ($bucket['requests'] >= $this->maxRequests) {
-            throw new \RpcPhpToolkit\Exceptions\RpcException(
+            throw new \RpcPhpToolkit\Exceptions\InternalErrorException(
                 'Rate limit exceeded',
-                -32000,
-                [
-                    'limit' => $this->maxRequests,
-                    'window' => $this->timeWindow,
-                    'retry_after' => $this->timeWindow - ($now - $bucket['window_start'])
-                ]
+                null
             );
         }
 

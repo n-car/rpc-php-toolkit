@@ -21,10 +21,10 @@ class RpcEndpoint
 {
     private string $endpoint;
     private array $methods = [];
-    private Logger $logger;
-    private MiddlewareManager $middleware;
-    private SchemaValidator $validator;
-    private BatchHandler $batchHandler;
+    private ?Logger $logger = null;
+    private ?MiddlewareManager $middleware = null;
+    private ?SchemaValidator $validator = null;
+    private ?BatchHandler $batchHandler = null;
     private array $options;
     private mixed $context;
     private string $introspectionPrefix = '__rpc';
@@ -315,6 +315,10 @@ class RpcEndpoint
                     throw new InvalidRequestException('Batch requests not enabled');
                 }
 
+                if ($this->batchHandler === null) {
+                    throw new InternalErrorException('Batch handler not initialized');
+                }
+
                 $response = $this->batchHandler->handleBatch($request, [$this, 'processSingleRequest']);
             } else {
                 // Single request
@@ -443,7 +447,7 @@ class RpcEndpoint
     /**
      * Creates a success response
      */
-    private function createSuccessResponse($id, mixed $result): array
+    private function createSuccessResponse(mixed $id, mixed $result): array
     {
         return [
             'jsonrpc' => '2.0',
@@ -455,7 +459,7 @@ class RpcEndpoint
     /**
      * Creates an error response
      */
-    private function createErrorResponse($id, \Throwable $error): array
+    private function createErrorResponse(mixed $id, \Throwable $error): array
     {
         $errorData = [
             'code' => $error instanceof RpcException ? $error->getCode() : -32603,
@@ -557,6 +561,7 @@ class RpcEndpoint
 
     /**
      * Deserializes a value (handles BigInt, Date with safe mode)
+     * @phpstan-ignore method.unused
      */
     private function deserializeValue(mixed $value, bool $safeEnabled = false): mixed
     {
@@ -621,7 +626,7 @@ class RpcEndpoint
     {
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if ($json === false || json_last_error() !== JSON_ERROR_NONE) {
             throw new InternalErrorException('JSON encoding error: ' . json_last_error_msg());
         }
 

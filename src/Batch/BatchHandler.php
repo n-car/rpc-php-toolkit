@@ -107,7 +107,7 @@ class BatchHandler
         $startTime = microtime(true);
 
         // Simulate concurrent processing by dividing into chunks
-        $chunkSize = min(10, ceil(count($requests) / 4));
+        $chunkSize = max(1, (int) min(10, ceil(count($requests) / 4)));
         $chunks = array_chunk($requests, $chunkSize, true);
         $responses = [];
 

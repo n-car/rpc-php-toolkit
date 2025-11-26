@@ -66,7 +66,11 @@ class FileTransport implements TransportInterface
             $data['extra'] = $record['extra'];
         }
 
-        return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            return '{"error":"JSON encoding failed"}';
+        }
+        return $json;
     }
 
     private function formatText(array $record): string

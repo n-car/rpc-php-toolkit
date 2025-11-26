@@ -12,6 +12,7 @@ use RpcPhpToolkit\Exceptions\AuthException;
 class AuthMiddleware implements MiddlewareInterface
 {
     private array $allowedMethods;
+    /** @var callable */
     private $authenticator;
     private bool $required;
     public function __construct(
@@ -35,7 +36,6 @@ class AuthMiddleware implements MiddlewareInterface
         if (!$token && $this->required) {
             throw new AuthException(
                 'Authentication required',
-                -32001,
                 ['reason' => 'Missing authentication token']
             );
         }
@@ -45,7 +45,6 @@ class AuthMiddleware implements MiddlewareInterface
             if (!$user && $this->required) {
                 throw new AuthException(
                     'Authentication failed',
-                    -32002,
                     ['reason' => 'Invalid authentication token']
                 );
             }
