@@ -14,6 +14,7 @@ logs/
 /coverage/
 /reports/
 clover.xml
+coverage.xml
 phpunit.xml.cache
 
 # Environment variables

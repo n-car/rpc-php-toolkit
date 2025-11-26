@@ -43,7 +43,7 @@
     },
     "scripts": {
         "test": "phpunit",
-        "test-coverage": "phpunit --coverage-html coverage",
+        "test-coverage": "phpunit --coverage-clover coverage.xml --coverage-html coverage",
         "phpcs": "phpcs src/ --standard=PSR12 --ignore=src/clients/*.js",
         "phpstan": "phpstan analyse src/ --level=8"
     },

@@ -26,6 +26,7 @@
         </exclude>
         <report>
             <html outputDirectory="./coverage"/>
+            <clover outputFile="./coverage.xml"/>
             <text outputFile="php://stdout"/>
         </report>
     </coverage>
