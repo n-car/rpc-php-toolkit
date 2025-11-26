@@ -177,15 +177,18 @@ class RpcEndpoint
         $options = &$this->options;
 
         // __rpc.listMethods - List all user methods
-        $this->addMethod("{$this->introspectionPrefix}.listMethods", function ($params, $context) use ($introspectionPrefix, &$methods) {
-            $userMethods = [];
-            foreach (array_keys($methods) as $name) {
-                if (!str_starts_with($name, $introspectionPrefix . '.')) {
-                    $userMethods[] = $name;
+        $this->addMethod(
+            "{$this->introspectionPrefix}.listMethods",
+            function ($params, $context) use ($introspectionPrefix, &$methods) {
+                $userMethods = [];
+                foreach (array_keys($methods) as $name) {
+                    if (!str_starts_with($name, $introspectionPrefix . '.')) {
+                        $userMethods[] = $name;
+                    }
                 }
+                return $userMethods;
             }
-            return $userMethods;
-        });
+        );
 
         // __rpc.describe - Get schema and description of a specific method
         $this->addMethod(
@@ -229,26 +232,29 @@ class RpcEndpoint
         );
 
         // __rpc.describeAll - Get all methods with public schemas
-        $this->addMethod("{$this->introspectionPrefix}.describeAll", function ($params, $context) use ($introspectionPrefix, &$methods) {
-            $publicMethods = [];
+        $this->addMethod(
+            "{$this->introspectionPrefix}.describeAll",
+            function ($params, $context) use ($introspectionPrefix, &$methods) {
+                $publicMethods = [];
 
-            foreach ($methods as $name => $methodConfig) {
-                // Skip introspection methods
-                if (str_starts_with($name, $introspectionPrefix . '.')) {
-                    continue;
+                foreach ($methods as $name => $methodConfig) {
+                    // Skip introspection methods
+                    if (str_starts_with($name, $introspectionPrefix . '.')) {
+                        continue;
+                    }
+
+                    if (isset($methodConfig['exposeSchema']) && $methodConfig['exposeSchema']) {
+                        $publicMethods[] = [
+                            'name' => $name,
+                            'schema' => $methodConfig['schema'] ?? null,
+                            'description' => $methodConfig['description'] ?? ''
+                        ];
+                    }
                 }
 
-                if (isset($methodConfig['exposeSchema']) && $methodConfig['exposeSchema']) {
-                    $publicMethods[] = [
-                        'name' => $name,
-                        'schema' => $methodConfig['schema'] ?? null,
-                        'description' => $methodConfig['description'] ?? ''
-                    ];
-                }
+                return $publicMethods;
             }
-
-            return $publicMethods;
-        });
+        );
 
         // __rpc.version - Get version information
         $this->addMethod("{$this->introspectionPrefix}.version", function ($params, $context) {
@@ -260,19 +266,22 @@ class RpcEndpoint
         });
 
         // __rpc.capabilities - Get server capabilities
-        $this->addMethod("{$this->introspectionPrefix}.capabilities", function ($params, $context) use ($introspectionPrefix, &$methods, &$options) {
-            return [
-                'batch' => $options['enableBatch'],
-                'introspection' => true,
-                'validation' => $options['enableValidation'],
-                'middleware' => $options['enableMiddleware'],
-                'safeMode' => $options['safeEnabled'],
-                'methodCount' => count(array_filter(
-                    array_keys($methods),
-                    fn($name) => !str_starts_with($name, $introspectionPrefix . '.')
-                ))
-            ];
-        });
+        $this->addMethod(
+            "{$this->introspectionPrefix}.capabilities",
+            function ($params, $context) use ($introspectionPrefix, &$methods, &$options) {
+                return [
+                    'batch' => $options['enableBatch'],
+                    'introspection' => true,
+                    'validation' => $options['enableValidation'],
+                    'middleware' => $options['enableMiddleware'],
+                    'safeMode' => $options['safeEnabled'],
+                    'methodCount' => count(array_filter(
+                        array_keys($methods),
+                        fn($name) => !str_starts_with($name, $introspectionPrefix . '.')
+                    ))
+                ];
+            }
+        );
 
         $this->isInternalRegistration = false;
     }
@@ -515,7 +524,9 @@ class RpcEndpoint
         if (is_int($value) && PHP_INT_SIZE === 8 && abs($value) > 9007199254740991) {
             // Warn if safe mode is disabled
             if (!$this->options['safeEnabled'] && $this->options['warnOnUnsafe']) {
-                $this->logger?->warning('Large integer detected in serialization. Consider enabling safeEnabled option.');
+                $this->logger?->warning(
+                    'Large integer detected in serialization. Consider enabling safeEnabled option.'
+                );
             }
 
             return (string)$value . 'n';

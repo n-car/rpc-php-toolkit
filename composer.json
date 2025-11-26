@@ -49,5 +49,10 @@
     },
     "config": {
         "sort-packages": true
-    }
+    },
+    "repositories": [{
+        "name": "packagist",
+        "type": "composer",
+        "url": "http://packagist.org"
+    }]
 }

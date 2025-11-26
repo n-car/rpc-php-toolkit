@@ -99,7 +99,6 @@ class MiddlewareManager
                     'phase' => $phase,
                     'execution_time_ms' => round($executionTime, 2)
                 ]);
-
             } catch (\Throwable $e) {
                 $this->logger?->error('Middleware error', [
                     'middleware' => get_class($middleware),
