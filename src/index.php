@@ -10,6 +10,7 @@
  */
 
 declare(strict_types=1);
+
 // Classe principale
 require_once __DIR__ . '/RpcEndpoint.php';
 

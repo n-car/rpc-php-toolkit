@@ -1,7 +1,11 @@
 <?php
+
 declare(strict_types=1);
+
 namespace RpcPhpToolkit\Middleware;
+
 use RpcPhpToolkit\Exceptions\AuthException;
+
 /**
  * Middleware for basic authentication
  */
@@ -62,4 +66,3 @@ class AuthMiddleware implements MiddlewareInterface
         return $_GET['token'] ?? null;
     }
 }
-

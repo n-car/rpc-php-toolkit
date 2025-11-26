@@ -108,7 +108,6 @@ class MiddlewareManager
                     'file' => $e->getFile(),
                     'line' => $e->getLine()
                 ]);
-
                 throw $e;
             }
         }

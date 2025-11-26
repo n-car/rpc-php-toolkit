@@ -1,6 +1,9 @@
 <?php
+
 declare(strict_types=1);
+
 namespace RpcPhpToolkit\Middleware;
+
 /**
  * CORS Middleware - Handles Cross-Origin Resource Sharing
  *
@@ -149,4 +152,3 @@ class CorsMiddleware implements MiddlewareInterface
         return $this->options;
     }
 }
-
