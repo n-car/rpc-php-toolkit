@@ -44,7 +44,7 @@
     "scripts": {
         "test": "phpunit",
         "test-coverage": "phpunit --coverage-html coverage",
-        "phpcs": "phpcs src/ --standard=PSR12",
+        "phpcs": "phpcs src/ --standard=PSR12 --ignore=src/clients/*.js",
         "phpstan": "phpstan analyse src/ --level=8"
     },
     "config": {
