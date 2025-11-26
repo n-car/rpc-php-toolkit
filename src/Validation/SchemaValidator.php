@@ -248,10 +248,33 @@ class SchemaValidator
             is_int($value) => 'integer',
             is_float($value) => 'number',
             is_string($value) => 'string',
-            is_array($value) && array_is_list($value) => 'array',
+            is_array($value) && $this->isArrayList($value) => 'array',
             is_array($value) => 'object',
             is_object($value) => 'object',
             default => 'unknown'
         };
+    }
+
+    /**
+     * Polyfill for array_is_list() (PHP 8.1+)
+     */
+    private function isArrayList(array $array): bool
+    {
+        if (function_exists('array_is_list')) {
+            return array_is_list($array);
+        }
+
+        if ($array === []) {
+            return true;
+        }
+
+        $i = 0;
+        foreach ($array as $k => $v) {
+            if ($k !== $i++) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
