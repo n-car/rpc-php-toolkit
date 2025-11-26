@@ -332,8 +332,10 @@ class RpcEndpoint
                 'response_id' => $response['id'] ?? null
             ]);
 
-            // Add safe mode header to response
-            header('X-RPC-Safe-Enabled: ' . ($this->options['safeEnabled'] ? 'true' : 'false'));
+            // Add safe mode header to response (only if headers not sent)
+            if (!headers_sent()) {
+                header('X-RPC-Safe-Enabled: ' . ($this->options['safeEnabled'] ? 'true' : 'false'));
+            }
 
             return $this->encodeJson($response);
         } catch (\Throwable $e) {
@@ -466,14 +468,14 @@ class RpcEndpoint
             'message' => $error->getMessage()
         ];
 
-        // Add additional data if present
-        if ($error instanceof RpcException && $error->getData()) {
-            $errorData['data'] = $error->getData();
-        }
-
-        // Serialize complete error if not sanitized
+        // Add additional data if present and not sanitized
         if (!$this->options['sanitizeErrors']) {
-            $errorData['data'] = $this->serializeError($error);
+            if ($error instanceof RpcException && $error->getData()) {
+                $errorData['data'] = $error->getData();
+            } else {
+                // Serialize complete error if not sanitized
+                $errorData['data'] = $this->serializeError($error);
+            }
         }
 
         return [

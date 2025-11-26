@@ -75,6 +75,11 @@ class SchemaValidator
     {
         $actualType = $this->getValueType($value);
 
+        // Allow 'integer' to match 'number' type
+        if ($expectedType === 'number' && ($actualType === 'integer' || $actualType === 'number')) {
+            return [];
+        }
+
         if ($actualType !== $expectedType) {
             return ["Expected type '{$expectedType}', received '{$actualType}'"];
         }
@@ -243,7 +248,8 @@ class SchemaValidator
             is_int($value) => 'integer',
             is_float($value) => 'number',
             is_string($value) => 'string',
-            is_array($value) => 'array',
+            is_array($value) && array_is_list($value) => 'array',
+            is_array($value) => 'object',
             is_object($value) => 'object',
             default => 'unknown'
         };

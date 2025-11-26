@@ -32,7 +32,7 @@ class AuthMiddleware implements MiddlewareInterface
             return $context;
         }
         // Extract authentication token
-        $token = $this->extractToken();
+        $token = $this->extractToken($context);
         if (!$token && $this->required) {
             throw new AuthException(
                 'Authentication required',
@@ -54,9 +54,16 @@ class AuthMiddleware implements MiddlewareInterface
         }
         return $context;
     }
-    private function extractToken(): ?string
+    private function extractToken(array $context): ?string
     {
-        // Authorization header
+        // Check context headers first (for testing)
+        if (isset($context['request']['headers']['Authorization'])) {
+            $authHeader = $context['request']['headers']['Authorization'];
+            if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+                return $matches[1];
+            }
+        }
+        // Authorization header from $_SERVER
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
         if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
             return $matches[1];

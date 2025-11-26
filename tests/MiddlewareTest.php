@@ -23,7 +23,7 @@ class MiddlewareTest extends TestCase
         $executed = false;
         
         $middleware = $this->createMock(\RpcPhpToolkit\Middleware\MiddlewareInterface::class);
-        $middleware->method('execute')
+        $middleware->method('handle')
             ->willReturnCallback(function($context) use (&$executed) {
                 $executed = true;
                 return $context;
@@ -40,14 +40,14 @@ class MiddlewareTest extends TestCase
         $order = [];
 
         $middleware1 = $this->createMock(\RpcPhpToolkit\Middleware\MiddlewareInterface::class);
-        $middleware1->method('execute')
+        $middleware1->method('handle')
             ->willReturnCallback(function($context) use (&$order) {
                 $order[] = 1;
                 return $context;
             });
 
         $middleware2 = $this->createMock(\RpcPhpToolkit\Middleware\MiddlewareInterface::class);
-        $middleware2->method('execute')
+        $middleware2->method('handle')
             ->willReturnCallback(function($context) use (&$order) {
                 $order[] = 2;
                 return $context;
@@ -71,15 +71,15 @@ class MiddlewareTest extends TestCase
         ];
 
         // First two requests should pass
-        $result1 = $rateLimiter->execute($context);
+        $result1 = $rateLimiter->handle($context);
         $this->assertIsArray($result1);
 
-        $result2 = $rateLimiter->execute($context);
+        $result2 = $rateLimiter->handle($context);
         $this->assertIsArray($result2);
 
         // Third request should be rate limited
         $this->expectException(\RpcPhpToolkit\Exceptions\RpcException::class);
-        $rateLimiter->execute($context);
+        $rateLimiter->handle($context);
     }
 
     public function testAuthMiddleware(): void
@@ -98,7 +98,7 @@ class MiddlewareTest extends TestCase
             ]
         ];
 
-        $result = $authMiddleware->execute($validContext);
+        $result = $authMiddleware->handle($validContext);
         $this->assertIsArray($result);
 
         $invalidContext = [
@@ -110,6 +110,6 @@ class MiddlewareTest extends TestCase
         ];
 
         $this->expectException(\RpcPhpToolkit\Exceptions\RpcException::class);
-        $authMiddleware->execute($invalidContext);
+        $authMiddleware->handle($invalidContext);
     }
 }
