@@ -409,6 +409,8 @@ This project is distributed under the MIT License. See the `LICENSE` file for de
 - **[rpc-express-toolkit](https://github.com/n-car/rpc-express-toolkit)** - Node.js/Express implementation
 - **[rpc-dotnet-toolkit](https://github.com/n-car/rpc-dotnet-toolkit)** - .NET implementation
 - **[rpc-arduino-toolkit](https://github.com/n-car/rpc-arduino-toolkit)** - Arduino/ESP32 implementation
+- **[rpc-java-toolkit](https://github.com/n-car/rpc-java-toolkit)** - Java & Android implementation
+- **[node-red-contrib-rpc-toolkit](https://github.com/n-car/node-red-contrib-rpc-toolkit)** - Node-RED visual programming
 
 ---
 
