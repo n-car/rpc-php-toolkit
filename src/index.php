@@ -1,16 +1,15 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * RPC PHP Toolkit - Libreria enterprise per JSON-RPC 2.0
- * 
+ *
  * @package RpcPhpToolkit
  * @version 1.0.0
  * @author Nicola Carpanese <nicola.carpanese@gmail.com>
  * @license MIT
  */
 
+declare(strict_types=1);
 // Classe principale
 require_once __DIR__ . '/RpcEndpoint.php';
 

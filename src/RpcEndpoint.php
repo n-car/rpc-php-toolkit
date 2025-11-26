@@ -65,7 +65,7 @@ class RpcEndpoint
         }
 
         $this->initializeComponents();
-        
+
         // Register introspection methods if enabled
         if ($this->options['enableIntrospection']) {
             $this->registerIntrospectionMethods();
@@ -103,7 +103,7 @@ class RpcEndpoint
 
     /**
      * Adds an RPC method
-     * 
+     *
      * @param string $name Method name
      * @param callable $handler Method handler
      * @param array|null $schema JSON Schema for parameter validation (or options array)
@@ -121,7 +121,7 @@ class RpcEndpoint
                 "Method names starting with '{$this->introspectionPrefix}.' are reserved for RPC introspection"
             );
         }
-        
+
         // Support both old signature (schema, middleware) and new signature (options array)
         $options = [];
         if (is_array($schema) && isset($schema['exposeSchema'])) {
@@ -140,7 +140,7 @@ class RpcEndpoint
             $options['schema'] = $schema;
             $schema = $options['schema'];
         }
-        
+
         $this->methods[$name] = [
             'handler' => $handler,
             'schema' => $schema,
@@ -150,7 +150,7 @@ class RpcEndpoint
         ];
 
         $this->logger?->info("RPC method added: {$name}");
-        
+
         return $this;
     }
 
@@ -161,7 +161,7 @@ class RpcEndpoint
     {
         unset($this->methods[$name]);
         $this->logger?->info("RPC method removed: {$name}");
-        
+
         return $this;
     }
 
@@ -171,11 +171,11 @@ class RpcEndpoint
     private function registerIntrospectionMethods(): void
     {
         $this->isInternalRegistration = true;
-        
+
         $introspectionPrefix = $this->introspectionPrefix;
         $methods = &$this->methods;
         $options = &$this->options;
-        
+
         // __rpc.listMethods - List all user methods
         $this->addMethod("{$this->introspectionPrefix}.listMethods", function ($params, $context) use ($introspectionPrefix, &$methods) {
             $userMethods = [];
@@ -186,7 +186,7 @@ class RpcEndpoint
             }
             return $userMethods;
         });
-        
+
         // __rpc.describe - Get schema and description of a specific method
         $this->addMethod(
             "{$this->introspectionPrefix}.describe",
@@ -194,25 +194,25 @@ class RpcEndpoint
                 if (!isset($params['method'])) {
                     throw new InvalidParamsException('Method name required');
                 }
-                
+
                 $methodName = $params['method'];
-                
+
                 // Prevent introspection of __rpc.* methods
                 if (str_starts_with($methodName, $introspectionPrefix . '.')) {
                     throw new MethodNotFoundException('Cannot describe introspection methods');
                 }
-                
+
                 if (!isset($methods[$methodName])) {
                     throw new MethodNotFoundException("Method not found: {$methodName}");
                 }
-                
+
                 $methodConfig = $methods[$methodName];
-                
+
                 // Check if schema is exposed
                 if (!isset($methodConfig['exposeSchema']) || !$methodConfig['exposeSchema']) {
                     throw new MethodNotFoundException('Method schema not available');
                 }
-                
+
                 return [
                     'name' => $methodName,
                     'schema' => $methodConfig['schema'] ?? null,
@@ -227,17 +227,17 @@ class RpcEndpoint
                 'required' => ['method']
             ]
         );
-        
+
         // __rpc.describeAll - Get all methods with public schemas
         $this->addMethod("{$this->introspectionPrefix}.describeAll", function ($params, $context) use ($introspectionPrefix, &$methods) {
             $publicMethods = [];
-            
+
             foreach ($methods as $name => $methodConfig) {
                 // Skip introspection methods
                 if (str_starts_with($name, $introspectionPrefix . '.')) {
                     continue;
                 }
-                
+
                 if (isset($methodConfig['exposeSchema']) && $methodConfig['exposeSchema']) {
                     $publicMethods[] = [
                         'name' => $name,
@@ -246,10 +246,10 @@ class RpcEndpoint
                     ];
                 }
             }
-            
+
             return $publicMethods;
         });
-        
+
         // __rpc.version - Get version information
         $this->addMethod("{$this->introspectionPrefix}.version", function ($params, $context) {
             return [
@@ -258,7 +258,7 @@ class RpcEndpoint
                 'phpVersion' => PHP_VERSION
             ];
         });
-        
+
         // __rpc.capabilities - Get server capabilities
         $this->addMethod("{$this->introspectionPrefix}.capabilities", function ($params, $context) use ($introspectionPrefix, &$methods, &$options) {
             return [
@@ -273,7 +273,7 @@ class RpcEndpoint
                 ))
             ];
         });
-        
+
         $this->isInternalRegistration = false;
     }
 
@@ -283,14 +283,14 @@ class RpcEndpoint
     public function handleRequest(string $input): string
     {
         $startTime = microtime(true);
-        
+
         try {
             // Decode JSON
             $request = $this->decodeJson($input);
-            
+
             // Check for safe mode header from client
             $clientSafeEnabled = ($_SERVER['HTTP_X_RPC_SAFE'] ?? 'false') === 'true';
-            
+
             // Log request
             $this->logger?->info('RPC request received', [
                 'endpoint' => $this->endpoint,
@@ -305,7 +305,7 @@ class RpcEndpoint
                 if (!$this->options['enableBatch']) {
                     throw new InvalidRequestException('Batch requests not enabled');
                 }
-                
+
                 $response = $this->batchHandler->handleBatch($request, [$this, 'processSingleRequest']);
             } else {
                 // Single request
@@ -323,7 +323,7 @@ class RpcEndpoint
             header('X-RPC-Safe-Enabled: ' . ($this->options['safeEnabled'] ? 'true' : 'false'));
 
             return $this->encodeJson($response);
-            
+
         } catch (\Throwable $e) {
             $this->logger?->error('Error handling RPC request', [
                 'error' => $e->getMessage(),
@@ -344,7 +344,7 @@ class RpcEndpoint
         try {
             // Basic request validation
             $this->validateRequest($request);
-            
+
             $method = $request['method'];
             $params = $request['params'] ?? [];
             $id = $request['id'] ?? null;
@@ -391,7 +391,7 @@ class RpcEndpoint
             }
 
             return $this->createSuccessResponse($id, $result);
-            
+
         } catch (RpcException $e) {
             return $this->createErrorResponse($request['id'] ?? null, $e);
         } catch (\Throwable $e) {
@@ -409,7 +409,7 @@ class RpcEndpoint
         if ($this->isAssociativeArray($params)) {
             return $handler($params, $this->context);
         }
-        
+
         // Otherwise pass as positional array + context
         $args = array_merge($params, [$this->context]);
         return $handler(...$args);
@@ -487,7 +487,7 @@ class RpcEndpoint
         }
 
         $result['class'] = get_class($error);
-        
+
         if ($error->getPrevious()) {
             $result['previous'] = $this->serializeError($error->getPrevious());
         }
@@ -503,12 +503,12 @@ class RpcEndpoint
         // Handle DateTime objects
         if ($value instanceof \DateTime) {
             $isoString = $value->format('c');
-            
+
             // Warn if safe mode is disabled
             if (!$this->options['safeEnabled'] && $this->options['warnOnUnsafe']) {
                 $this->logger?->warning('Date detected in serialization. Consider enabling safeEnabled option.');
             }
-            
+
             // Add D: prefix if safe mode enabled
             return $this->options['safeEnabled'] ? 'D:' . $isoString : $isoString;
         }
@@ -519,7 +519,7 @@ class RpcEndpoint
             if (!$this->options['safeEnabled'] && $this->options['warnOnUnsafe']) {
                 $this->logger?->warning('Large integer detected in serialization. Consider enabling safeEnabled option.');
             }
-            
+
             return (string)$value . 'n';
         }
 
@@ -597,7 +597,7 @@ class RpcEndpoint
     private function decodeJson(string $json): array
     {
         $data = json_decode($json, true);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new InvalidRequestException('Invalid JSON: ' . json_last_error_msg());
         }
@@ -611,7 +611,7 @@ class RpcEndpoint
     private function encodeJson(mixed $data): string
     {
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new InternalErrorException('JSON encoding error: ' . json_last_error_msg());
         }
@@ -633,11 +633,11 @@ class RpcEndpoint
     public static function serveClientScripts(string $basePath = '/vendor/rpc-client'): void
     {
         $requestUri = $_SERVER['REQUEST_URI'] ?? '';
-        
+
         if (strpos($requestUri, $basePath) === 0) {
             $file = substr($requestUri, strlen($basePath));
             $clientPath = __DIR__ . '/clients' . $file;
-            
+
             if (file_exists($clientPath) && is_file($clientPath)) {
                 $ext = pathinfo($clientPath, PATHINFO_EXTENSION);
                 $contentType = match($ext) {
@@ -646,7 +646,7 @@ class RpcEndpoint
                     'css' => 'text/css',
                     default => 'text/plain'
                 };
-                
+
                 header('Content-Type: ' . $contentType);
                 readfile($clientPath);
                 exit;

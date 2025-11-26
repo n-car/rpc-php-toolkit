@@ -11,7 +11,7 @@ interface MiddlewareInterface
 {
     /**
      * Handles the middleware
-     * 
+     *
      * @param array $context The request context
      * @return array The modified context
      */

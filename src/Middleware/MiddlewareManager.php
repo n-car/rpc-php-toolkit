@@ -27,14 +27,14 @@ class MiddlewareManager
         if (!isset($this->middleware[$phase])) {
             $this->middleware[$phase] = [];
         }
-        
+
         $this->middleware[$phase][] = $middleware;
-        
+
         $this->logger?->debug('Middleware added', [
             'middleware' => get_class($middleware),
             'phase' => $phase
         ]);
-        
+
         return $this;
     }
 
@@ -51,7 +51,7 @@ class MiddlewareManager
         } else {
             $this->removeFromPhase($middlewareClass, $phase);
         }
-        
+
         return $this;
     }
 
@@ -60,12 +60,12 @@ class MiddlewareManager
         if (!isset($this->middleware[$phase])) {
             return;
         }
-        
+
         $this->middleware[$phase] = array_filter(
             $this->middleware[$phase],
             fn($middleware) => !($middleware instanceof $middlewareClass)
         );
-        
+
         $this->logger?->debug('Middleware removed', [
             'middleware' => $middlewareClass,
             'phase' => $phase
@@ -89,17 +89,17 @@ class MiddlewareManager
         foreach ($this->middleware[$phase] as $middleware) {
             try {
                 $startTime = microtime(true);
-                
+
                 $context = $middleware->handle($context);
-                
+
                 $executionTime = (microtime(true) - $startTime) * 1000;
-                
+
                 $this->logger?->debug('Middleware executed', [
                     'middleware' => get_class($middleware),
                     'phase' => $phase,
                     'execution_time_ms' => round($executionTime, 2)
                 ]);
-                
+
             } catch (\Throwable $e) {
                 $this->logger?->error('Middleware error', [
                     'middleware' => get_class($middleware),
@@ -108,7 +108,7 @@ class MiddlewareManager
                     'file' => $e->getFile(),
                     'line' => $e->getLine()
                 ]);
-                
+
                 throw $e;
             }
         }
@@ -124,7 +124,7 @@ class MiddlewareManager
         if ($phase === null) {
             return $this->middleware;
         }
-        
+
         return $this->middleware[$phase] ?? [];
     }
 
@@ -136,7 +136,7 @@ class MiddlewareManager
         if ($phase === null) {
             return array_sum(array_map('count', $this->middleware));
         }
-        
+
         return count($this->middleware[$phase] ?? []);
     }
 
@@ -152,7 +152,7 @@ class MiddlewareManager
             unset($this->middleware[$phase]);
             $this->logger?->info("Middleware removed from phase: {$phase}");
         }
-        
+
         return $this;
     }
 }

@@ -27,7 +27,7 @@ class SchemaValidator
     public function validateParams(array $params, array $schema): void
     {
         $errors = $this->validate($params, $schema);
-        
+
         if (!empty($errors)) {
             throw new InvalidParamsException(
                 'Parameter validation failed',
@@ -42,18 +42,18 @@ class SchemaValidator
     public function validate(mixed $value, array $schema): array
     {
         $errors = [];
-        
+
         // Type validation
         if (isset($schema['type'])) {
             $typeErrors = $this->validateType($value, $schema['type']);
             $errors = array_merge($errors, $typeErrors);
         }
-        
+
         // If basic type is not valid, don't continue
         if (!empty($errors)) {
             return $errors;
         }
-        
+
         // Type-specific validations
         if (is_array($value)) {
             $errors = array_merge($errors, $this->validateArray($value, $schema));
@@ -62,40 +62,40 @@ class SchemaValidator
         } elseif (is_numeric($value)) {
             $errors = array_merge($errors, $this->validateNumber($value, $schema));
         }
-        
+
         // Enum validation
         if (isset($schema['enum'])) {
             $errors = array_merge($errors, $this->validateEnum($value, $schema['enum']));
         }
-        
+
         return $errors;
     }
 
     private function validateType(mixed $value, string $expectedType): array
     {
         $actualType = $this->getValueType($value);
-        
+
         if ($actualType !== $expectedType) {
             return ["Expected type '{$expectedType}', received '{$actualType}'"];
         }
-        
+
         return [];
     }
 
     private function validateArray(array $value, array $schema): array
     {
         $errors = [];
-        
+
         // Minimum length validation
         if (isset($schema['minItems']) && count($value) < $schema['minItems']) {
             $errors[] = "Array must have at least {$schema['minItems']} items";
         }
-        
+
         // Maximum length validation
         if (isset($schema['maxItems']) && count($value) > $schema['maxItems']) {
             $errors[] = "Array can have at most {$schema['maxItems']} items";
         }
-        
+
         // Items validation
         if (isset($schema['items'])) {
             foreach ($value as $index => $item) {
@@ -105,19 +105,19 @@ class SchemaValidator
                 }
             }
         }
-        
+
         // Properties validation (for objects)
         if (isset($schema['properties'])) {
             $errors = array_merge($errors, $this->validateObject($value, $schema));
         }
-        
+
         return $errors;
     }
 
     private function validateObject(array $value, array $schema): array
     {
         $errors = [];
-        
+
         // Required properties validation
         if (isset($schema['required'])) {
             foreach ($schema['required'] as $requiredProp) {
@@ -126,7 +126,7 @@ class SchemaValidator
                 }
             }
         }
-        
+
         // Properties validation
         if (isset($schema['properties'])) {
             foreach ($value as $prop => $propValue) {
@@ -140,58 +140,58 @@ class SchemaValidator
                 }
             }
         }
-        
+
         return $errors;
     }
 
     private function validateString(string $value, array $schema): array
     {
         $errors = [];
-        
+
         // Minimum length validation
         if (isset($schema['minLength']) && strlen($value) < $schema['minLength']) {
             $errors[] = "String must be at least {$schema['minLength']} characters long";
         }
-        
+
         // Maximum length validation
         if (isset($schema['maxLength']) && strlen($value) > $schema['maxLength']) {
             $errors[] = "String can be at most {$schema['maxLength']} characters long";
         }
-        
+
         // Pattern validation
         if (isset($schema['pattern'])) {
             if (!preg_match($schema['pattern'], $value)) {
                 $errors[] = "String does not match the required pattern";
             }
         }
-        
+
         // Format validation
         if (isset($schema['format'])) {
             $errors = array_merge($errors, $this->validateFormat($value, $schema['format']));
         }
-        
+
         return $errors;
     }
 
     private function validateNumber(int|float $value, array $schema): array
     {
         $errors = [];
-        
+
         // Minimum validation
         if (isset($schema['minimum']) && $value < $schema['minimum']) {
             $errors[] = "Value must be at least {$schema['minimum']}";
         }
-        
+
         // Maximum validation
         if (isset($schema['maximum']) && $value > $schema['maximum']) {
             $errors[] = "Value can be at most {$schema['maximum']}";
         }
-        
+
         // Multiple validation
         if (isset($schema['multipleOf']) && fmod($value, $schema['multipleOf']) !== 0.0) {
             $errors[] = "Value must be a multiple of {$schema['multipleOf']}";
         }
-        
+
         return $errors;
     }
 
@@ -201,7 +201,7 @@ class SchemaValidator
             $enumStr = implode(', ', array_map('json_encode', $enum));
             return ["Value must be one of: $enumStr"];
         }
-        
+
         return [];
     }
 

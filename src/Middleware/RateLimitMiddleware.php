@@ -25,10 +25,10 @@ class RateLimitMiddleware implements MiddlewareInterface
     {
         $key = $this->getIdentifierKey($context);
         $now = time();
-        
+
         // Clean old entries
         $this->cleanup($now);
-        
+
         // Initialize bucket if it doesn't exist
         if (!isset($this->storage[$key])) {
             $this->storage[$key] = [
@@ -36,15 +36,15 @@ class RateLimitMiddleware implements MiddlewareInterface
                 'window_start' => $now
             ];
         }
-        
+
         $bucket = &$this->storage[$key];
-        
+
         // Reset bucket if window expired
         if ($now - $bucket['window_start'] >= $this->timeWindow) {
             $bucket['requests'] = 0;
             $bucket['window_start'] = $now;
         }
-        
+
         // Check limit
         if ($bucket['requests'] >= $this->maxRequests) {
             throw new \RpcPhpToolkit\Exceptions\RpcException(
@@ -57,16 +57,16 @@ class RateLimitMiddleware implements MiddlewareInterface
                 ]
             );
         }
-        
+
         $bucket['requests']++;
-        
+
         // Add rate limit headers to context
         $context['rate_limit'] = [
             'limit' => $this->maxRequests,
             'remaining' => $this->maxRequests - $bucket['requests'],
             'reset' => $bucket['window_start'] + $this->timeWindow
         ];
-        
+
         return $context;
     }
 

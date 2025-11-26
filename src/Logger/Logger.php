@@ -37,7 +37,7 @@ class Logger
     {
         $this->level = $options['level'] ?? self::INFO;
         $this->context = $options['context'] ?? [];
-        
+
         // Default transport: file
         if (empty($options['transports'])) {
             $this->addTransport(new FileTransport($options['file'] ?? []));
@@ -101,7 +101,7 @@ class Logger
         }
 
         $record = $this->createRecord($level, $message, $context);
-        
+
         foreach ($this->transports as $transport) {
             $transport->write($record);
         }

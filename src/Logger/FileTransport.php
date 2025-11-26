@@ -18,7 +18,7 @@ class FileTransport implements TransportInterface
         $this->filename = $options['filename'] ?? 'logs/rpc.log';
         $this->format = $options['format'] ?? 'json';
         $this->includeContext = $options['includeContext'] ?? true;
-        
+
         // Create directory if it doesn't exist
         $dir = dirname($this->filename);
         if (!is_dir($dir)) {
@@ -29,13 +29,13 @@ class FileTransport implements TransportInterface
     public function write(array $record): void
     {
         $formatted = $this->format($record);
-        
+
         $bytes = file_put_contents(
             $this->filename,
             $formatted . PHP_EOL,
             FILE_APPEND | LOCK_EX
         );
-        
+
         if ($bytes === false) {
             throw new \RuntimeException("Unable to write to log file: {$this->filename}");
         }
@@ -46,7 +46,7 @@ class FileTransport implements TransportInterface
         if ($this->format === 'json') {
             return $this->formatJson($record);
         }
-        
+
         return $this->formatText($record);
     }
 
@@ -74,13 +74,13 @@ class FileTransport implements TransportInterface
         $timestamp = $record['timestamp']->format('Y-m-d H:i:s');
         $level = str_pad($record['level_name'], 9);
         $message = $record['message'];
-        
+
         $line = "[{$timestamp}] {$level}: {$message}";
-        
+
         if ($this->includeContext && !empty($record['context'])) {
             $line .= ' ' . json_encode($record['context'], JSON_UNESCAPED_UNICODE);
         }
-        
+
         return $line;
     }
 }

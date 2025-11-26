@@ -47,14 +47,14 @@ class BatchHandler
         foreach ($requests as $index => $request) {
             try {
                 $this->logger?->debug("Processing batch request #{$index}");
-                
+
                 $response = $processor($request);
-                
+
                 // Only add response if not empty (notifications have no response)
                 if (!empty($response)) {
                     $responses[] = $response;
                 }
-                
+
             } catch (\Throwable $e) {
                 $this->logger?->error("Error in batch request #{$index}", [
                     'error' => $e->getMessage(),
@@ -63,7 +63,7 @@ class BatchHandler
 
                 // For parsing errors, use null as id
                 $id = is_array($request) ? ($request['id'] ?? null) : null;
-                
+
                 $responses[] = [
                     'jsonrpc' => '2.0',
                     'error' => [
@@ -76,7 +76,7 @@ class BatchHandler
         }
 
         $executionTime = (microtime(true) - $startTime) * 1000;
-        
+
         $this->logger?->info('Batch processing completed', [
             'requests_processed' => count($requests),
             'responses_generated' => count($responses),
@@ -106,7 +106,7 @@ class BatchHandler
         ]);
 
         $startTime = microtime(true);
-        
+
         // Simulate concurrent processing by dividing into chunks
         $chunkSize = min(10, ceil(count($requests) / 4));
         $chunks = array_chunk($requests, $chunkSize, true);
@@ -120,18 +120,18 @@ class BatchHandler
             foreach ($chunk as $index => $request) {
                 try {
                     $response = $processor($request);
-                    
+
                     if (!empty($response)) {
                         $responses[] = $response;
                     }
-                    
+
                 } catch (\Throwable $e) {
                     $this->logger?->error("Error in request #{$index}", [
                         'error' => $e->getMessage()
                     ]);
 
                     $id = is_array($request) ? ($request['id'] ?? null) : null;
-                    
+
                     $responses[] = [
                         'jsonrpc' => '2.0',
                         'error' => [
@@ -142,7 +142,7 @@ class BatchHandler
                     ];
                 }
             }
-            
+
             // Simulate delay for next chunk
             if ($chunkIndex < count($chunks) - 1) {
                 usleep(1000); // 1ms
@@ -150,7 +150,7 @@ class BatchHandler
         }
 
         $executionTime = (microtime(true) - $startTime) * 1000;
-        
+
         $this->logger?->info('Concurrent batch processing completed', [
             'chunks_processed' => count($chunks),
             'total_responses' => count($responses),
