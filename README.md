@@ -85,7 +85,12 @@ echo $rpc->handleRequest($input);
 ```php
 use RpcPhpToolkit\Client\RpcClient;
 
-$client = new RpcClient('http://localhost:8000/api/rpc');
+// Create client
+$client = new RpcClient('http://localhost:8000/api/rpc', [], [
+    'timeout' => 30,
+    'verifySSL' => true,
+    'safeEnabled' => false  // Enable safe serialization if needed
+]);
 
 // Single call
 $result = $client->call('getTime');
@@ -93,11 +98,18 @@ $result = $client->call('getTime');
 // Call with parameters
 $result = $client->call('echo', ['message' => 'Hello!']);
 
+// With authentication
+$client->setAuthToken('your-token-here');
+$result = $client->call('protected.method');
+
 // Batch request
 $results = $client->batch([
     ['method' => 'getTime', 'id' => 1],
     ['method' => 'echo', 'params' => ['message' => 'Test'], 'id' => 2]
 ]);
+
+// Notification (no response)
+$client->notify('log.event', ['data' => 'something']);
 ```
 
 ### JavaScript Client
@@ -131,6 +143,19 @@ const results = await client.batch([
 ```php
 use RpcPhpToolkit\Middleware\RateLimitMiddleware;
 use RpcPhpToolkit\Middleware\AuthMiddleware;
+use RpcPhpToolkit\Middleware\CorsMiddleware;
+
+// CORS support
+$rpc->getMiddleware()->add(
+    new CorsMiddleware([
+        'origin' => '*',  // or specific origin(s)
+        'methods' => ['GET', 'POST', 'OPTIONS'],
+        'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe'],
+        'credentials' => false,
+        'maxAge' => 86400
+    ]),
+    'before'
+);
 
 // Rate limiting
 $rpc->getMiddleware()->add(
@@ -283,8 +308,42 @@ $options = [
     'enableMiddleware' => true,      // Enable middleware system
     'maxBatchSize' => 100,          // Maximum batch size
     'timeout' => 30,                // Timeout in seconds
+    'safeEnabled' => false,         // Enable safe type serialization (S:, D: prefixes)
+    'warnOnUnsafe' => true,         // Warn when BigInt/Date serialized without safe mode
     'errorProperties' => [...]      // Error properties to include
 ];
+```
+
+### Safe Serialization Mode
+
+Like the Express version, PHP toolkit supports **Safe Mode** for type-safe serialization:
+
+```php
+// Enable safe mode
+$rpc = new RpcEndpoint('/api/rpc', $context, [
+    'safeEnabled' => true
+]);
+
+// Client with safe mode
+$client = new RpcClient('http://localhost:8000/api/rpc', [], [
+    'safeEnabled' => true
+]);
+```
+
+**How it works:**
+- **Strings**: Prefixed with `S:` → `"hello"` becomes `"S:hello"`
+- **Dates**: Prefixed with `D:` → ISO string becomes `"D:2025-11-26T10:30:00Z"`
+- **Large integers**: Suffixed with `n` → `9007199254740992` becomes `"9007199254740992n"`
+
+This prevents ambiguity when deserializing JSON, especially useful when:
+- You control both client and server
+- Type safety is critical
+- Working with BigInt or Date values
+
+**Default behavior** (safeEnabled: false):
+- Maximum JSON-RPC 2.0 compatibility
+- Standard serialization without prefixes
+- Warnings logged when BigInt/Date detected (disable with `warnOnUnsafe: false`)
 ```
 
 ### JSON-RPC Error Codes
@@ -344,6 +403,12 @@ $response = $client->get('https://localhost:8000/api/rpc');
 ## License
 
 This project is distributed under the MIT License. See the `LICENSE` file for details.
+
+## 🔗 Related Projects
+
+- **[rpc-express-toolkit](https://github.com/n-car/rpc-express-toolkit)** - Node.js/Express implementation
+- **[rpc-dotnet-toolkit](https://github.com/n-car/rpc-dotnet-toolkit)** - .NET implementation
+- **[rpc-arduino-toolkit](https://github.com/n-car/rpc-arduino-toolkit)** - Arduino/ESP32 implementation
 
 ---
 
