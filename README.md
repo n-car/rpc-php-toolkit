@@ -12,6 +12,7 @@ An enterprise-ready JSON-RPC 2.0 library for PHP applications with simplified AP
 - [Advanced Usage](#advanced-usage)
   - [Configuration Options](#configuration-options)
   - [Schema Validation](#schema-validation)
+  - [Introspection Methods](#introspection-methods)
   - [Middleware System](#middleware-system)
   - [Batch Requests](#batch-requests)
   - [Structured Logging](#structured-logging)
@@ -194,6 +195,59 @@ $rpc->addMethod('createUser', function($params, $context) {
     'required' => ['name', 'email']
 ]);
 ```
+
+### Introspection Methods
+
+Enable introspection to expose metadata about registered methods via reserved `__rpc.*` methods:
+
+```php
+// Create endpoint with introspection enabled
+$rpc = new RpcEndpoint('/api/rpc', $context, [
+    'enableIntrospection' => true,      // Enable __rpc.* methods (default: false)
+    'introspectionPrefix' => '__rpc'    // Prefix for introspection methods (configurable)
+]);
+
+// Register methods with public schemas
+$rpc->addMethod('add', function($params, $context) {
+    return $params['a'] + $params['b'];
+}, [
+    'schema' => [
+        'type' => 'object',
+        'properties' => [
+            'a' => ['type' => 'number'],
+            'b' => ['type' => 'number']
+        ],
+        'required' => ['a', 'b']
+    ],
+    'exposeSchema' => true,              // Make schema publicly queryable
+    'description' => 'Add two numbers'   // Method description
+]);
+
+// Available introspection methods:
+
+// __rpc.listMethods() → ["add", "multiply", ...]
+$methods = $client->call('__rpc.listMethods');
+
+// __rpc.describe(['method' => 'add']) → {name, schema, description}
+$info = $client->call('__rpc.describe', ['method' => 'add']);
+
+// __rpc.describeAll() → [{name, schema, description}, ...]
+$allPublic = $client->call('__rpc.describeAll');
+
+// __rpc.version() → {toolkit, version, phpVersion}
+$version = $client->call('__rpc.version');
+
+// __rpc.capabilities() → {batch, introspection, validation, ...}
+$capabilities = $client->call('__rpc.capabilities');
+```
+
+**Security Notes:**
+- Methods with `exposeSchema: false` are hidden from `__rpc.describe`
+- Introspection methods cannot describe themselves
+- Users cannot register methods starting with the introspection prefix
+- The prefix is configurable to avoid conflicts with existing methods
+
+See `examples/introspection/` for complete examples.
 
 ### Structured Logging
 

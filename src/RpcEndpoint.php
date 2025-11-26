@@ -27,6 +27,8 @@ class RpcEndpoint
     private BatchHandler $batchHandler;
     private array $options;
     private mixed $context;
+    private string $introspectionPrefix = '__rpc';
+    private bool $isInternalRegistration = false;
 
     /**
      * Default properties to include in error serialization
@@ -53,9 +55,21 @@ class RpcEndpoint
             'errorProperties' => self::DEFAULT_ERROR_PROPERTIES,
             'safeEnabled' => false,  // Safe serialization disabled by default (like Express)
             'warnOnUnsafe' => true,  // Warn when BigInt/Date serialized without safe mode
+            'enableIntrospection' => false,  // Introspection disabled by default
+            'introspectionPrefix' => '__rpc',  // Prefix for introspection methods
         ], $options);
 
+        // Set introspection prefix from options
+        if (isset($options['introspectionPrefix'])) {
+            $this->introspectionPrefix = $options['introspectionPrefix'];
+        }
+
         $this->initializeComponents();
+        
+        // Register introspection methods if enabled
+        if ($this->options['enableIntrospection']) {
+            $this->registerIntrospectionMethods();
+        }
     }
 
     /**
@@ -89,17 +103,50 @@ class RpcEndpoint
 
     /**
      * Adds an RPC method
+     * 
+     * @param string $name Method name
+     * @param callable $handler Method handler
+     * @param array|null $schema JSON Schema for parameter validation (or options array)
+     * @param array $middleware Middleware stack (or can be in options)
      */
     public function addMethod(
         string $name,
         callable $handler,
-        ?array $schema = null,
+        $schema = null,
         array $middleware = []
     ): self {
+        // Prevent users from registering introspection methods
+        if (str_starts_with($name, $this->introspectionPrefix . '.') && !$this->isInternalRegistration) {
+            throw new \InvalidArgumentException(
+                "Method names starting with '{$this->introspectionPrefix}.' are reserved for RPC introspection"
+            );
+        }
+        
+        // Support both old signature (schema, middleware) and new signature (options array)
+        $options = [];
+        if (is_array($schema) && isset($schema['exposeSchema'])) {
+            // New format: options object containing schema, exposeSchema, description, middleware
+            $options = $schema;
+            $schema = $options['schema'] ?? null;
+            $middleware = $options['middleware'] ?? [];
+        } elseif (is_array($schema) && isset($schema['type'])) {
+            // Old format: schema directly
+            $options['schema'] = $schema;
+        } elseif ($schema === null) {
+            // No schema
+            $options['schema'] = null;
+        } else {
+            // Assume it's a schema
+            $options['schema'] = $schema;
+            $schema = $options['schema'];
+        }
+        
         $this->methods[$name] = [
             'handler' => $handler,
             'schema' => $schema,
-            'middleware' => $middleware
+            'middleware' => $middleware,
+            'exposeSchema' => $options['exposeSchema'] ?? false,
+            'description' => $options['description'] ?? ''
         ];
 
         $this->logger?->info("RPC method added: {$name}");
@@ -116,6 +163,118 @@ class RpcEndpoint
         $this->logger?->info("RPC method removed: {$name}");
         
         return $this;
+    }
+
+    /**
+     * Register introspection methods (__rpc.*)
+     */
+    private function registerIntrospectionMethods(): void
+    {
+        $this->isInternalRegistration = true;
+        
+        $introspectionPrefix = $this->introspectionPrefix;
+        $methods = &$this->methods;
+        $options = &$this->options;
+        
+        // __rpc.listMethods - List all user methods
+        $this->addMethod("{$this->introspectionPrefix}.listMethods", function ($params, $context) use ($introspectionPrefix, &$methods) {
+            $userMethods = [];
+            foreach (array_keys($methods) as $name) {
+                if (!str_starts_with($name, $introspectionPrefix . '.')) {
+                    $userMethods[] = $name;
+                }
+            }
+            return $userMethods;
+        });
+        
+        // __rpc.describe - Get schema and description of a specific method
+        $this->addMethod(
+            "{$this->introspectionPrefix}.describe",
+            function ($params, $context) use ($introspectionPrefix, &$methods) {
+                if (!isset($params['method'])) {
+                    throw new InvalidParamsException('Method name required');
+                }
+                
+                $methodName = $params['method'];
+                
+                // Prevent introspection of __rpc.* methods
+                if (str_starts_with($methodName, $introspectionPrefix . '.')) {
+                    throw new MethodNotFoundException('Cannot describe introspection methods');
+                }
+                
+                if (!isset($methods[$methodName])) {
+                    throw new MethodNotFoundException("Method not found: {$methodName}");
+                }
+                
+                $methodConfig = $methods[$methodName];
+                
+                // Check if schema is exposed
+                if (!isset($methodConfig['exposeSchema']) || !$methodConfig['exposeSchema']) {
+                    throw new MethodNotFoundException('Method schema not available');
+                }
+                
+                return [
+                    'name' => $methodName,
+                    'schema' => $methodConfig['schema'] ?? null,
+                    'description' => $methodConfig['description'] ?? ''
+                ];
+            },
+            [
+                'type' => 'object',
+                'properties' => [
+                    'method' => ['type' => 'string']
+                ],
+                'required' => ['method']
+            ]
+        );
+        
+        // __rpc.describeAll - Get all methods with public schemas
+        $this->addMethod("{$this->introspectionPrefix}.describeAll", function ($params, $context) use ($introspectionPrefix, &$methods) {
+            $publicMethods = [];
+            
+            foreach ($methods as $name => $methodConfig) {
+                // Skip introspection methods
+                if (str_starts_with($name, $introspectionPrefix . '.')) {
+                    continue;
+                }
+                
+                if (isset($methodConfig['exposeSchema']) && $methodConfig['exposeSchema']) {
+                    $publicMethods[] = [
+                        'name' => $name,
+                        'schema' => $methodConfig['schema'] ?? null,
+                        'description' => $methodConfig['description'] ?? ''
+                    ];
+                }
+            }
+            
+            return $publicMethods;
+        });
+        
+        // __rpc.version - Get version information
+        $this->addMethod("{$this->introspectionPrefix}.version", function ($params, $context) {
+            return [
+                'toolkit' => 'rpc-php-toolkit',
+                'version' => '1.1.0',
+                'phpVersion' => PHP_VERSION
+            ];
+        });
+        
+        // __rpc.capabilities - Get server capabilities
+        $this->addMethod("{$this->introspectionPrefix}.capabilities", function ($params, $context) use ($introspectionPrefix, &$methods, &$options) {
+            return [
+                'batch' => $options['enableBatch'],
+                'introspection' => true,
+                'validation' => $options['enableValidation'],
+                'middleware' => $options['enableMiddleware'],
+                'safeMode' => $options['safeEnabled'],
+                'methodCount' => count(array_filter(
+                    array_keys($methods),
+                    fn($name) => !str_starts_with($name, $introspectionPrefix . '.')
+                ))
+            ];
+        });
+        
+        $this->isInternalRegistration = false;
     }
 
     /**
