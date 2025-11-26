@@ -50,7 +50,9 @@ class RpcEndpoint
             'enableMiddleware' => true,
             'maxBatchSize' => 100,
             'timeout' => 30,
-            'errorProperties' => self::DEFAULT_ERROR_PROPERTIES
+            'errorProperties' => self::DEFAULT_ERROR_PROPERTIES,
+            'safeEnabled' => false,  // Safe serialization disabled by default (like Express)
+            'warnOnUnsafe' => true,  // Warn when BigInt/Date serialized without safe mode
         ], $options);
 
         $this->initializeComponents();
@@ -127,11 +129,15 @@ class RpcEndpoint
             // Decode JSON
             $request = $this->decodeJson($input);
             
+            // Check for safe mode header from client
+            $clientSafeEnabled = ($_SERVER['HTTP_X_RPC_SAFE'] ?? 'false') === 'true';
+            
             // Log request
             $this->logger?->info('RPC request received', [
                 'endpoint' => $this->endpoint,
                 'request_id' => $request['id'] ?? null,
-                'method' => $request['method'] ?? null
+                'method' => $request['method'] ?? null,
+                'safe_mode' => $clientSafeEnabled
             ]);
 
             // Handle batch or single request
@@ -153,6 +159,9 @@ class RpcEndpoint
                 'execution_time_ms' => round($executionTime, 2),
                 'response_id' => $response['id'] ?? null
             ]);
+
+            // Add safe mode header to response
+            header('X-RPC-Safe-Enabled: ' . ($this->options['safeEnabled'] ? 'true' : 'false'));
 
             return $this->encodeJson($response);
             
@@ -332,31 +341,91 @@ class RpcEndpoint
      */
     private function serializeValue(mixed $value): mixed
     {
+        // Handle DateTime objects
         if ($value instanceof \DateTime) {
-            return [
-                '__type' => 'Date',
-                'value' => $value->format('c'),
-                'timezone' => $value->getTimezone()->getName()
-            ];
+            $isoString = $value->format('c');
+            
+            // Warn if safe mode is disabled
+            if (!$this->options['safeEnabled'] && $this->options['warnOnUnsafe']) {
+                $this->logger?->warning('Date detected in serialization. Consider enabling safeEnabled option.');
+            }
+            
+            // Add D: prefix if safe mode enabled
+            return $this->options['safeEnabled'] ? 'D:' . $isoString : $isoString;
         }
 
+        // Handle large integers (BigInt equivalent in PHP)
         if (is_int($value) && PHP_INT_SIZE === 8 && abs($value) > 9007199254740991) {
-            return [
-                '__type' => 'BigInt',
-                'value' => (string)$value
-            ];
+            // Warn if safe mode is disabled
+            if (!$this->options['safeEnabled'] && $this->options['warnOnUnsafe']) {
+                $this->logger?->warning('Large integer detected in serialization. Consider enabling safeEnabled option.');
+            }
+            
+            return (string)$value . 'n';
         }
 
+        // Handle strings - add S: prefix if safe mode enabled
+        if (is_string($value)) {
+            return $this->options['safeEnabled'] ? 'S:' . $value : $value;
+        }
+
+        // Handle arrays
         if (is_array($value)) {
             return array_map([$this, 'serializeValue'], $value);
         }
 
+        // Handle objects
         if (is_object($value)) {
             if (method_exists($value, 'toArray')) {
                 return $this->serializeValue($value->toArray());
             }
             if (method_exists($value, 'jsonSerialize')) {
                 return $this->serializeValue($value->jsonSerialize());
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Deserializes a value (handles BigInt, Date with safe mode)
+     */
+    private function deserializeValue(mixed $value, bool $safeEnabled = false): mixed
+    {
+        if (!is_string($value)) {
+            // Recursively deserialize arrays
+            if (is_array($value)) {
+                return array_map(fn($v) => $this->deserializeValue($v, $safeEnabled), $value);
+            }
+            return $value;
+        }
+
+        // Safe string check
+        if ($safeEnabled && str_starts_with($value, 'S:')) {
+            return substr($value, 2);
+        }
+
+        // Safe date check
+        if ($safeEnabled && str_starts_with($value, 'D:')) {
+            $dateStr = substr($value, 2);
+            try {
+                return new \DateTime($dateStr);
+            } catch (\Exception $e) {
+                return $value; // Return original if parsing fails
+            }
+        }
+
+        // BigInt check (ends with 'n')
+        if (str_ends_with($value, 'n') && is_numeric(substr($value, 0, -1))) {
+            return (int)substr($value, 0, -1);
+        }
+
+        // ISO date detection (if not safe mode)
+        if (!$safeEnabled && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $value)) {
+            try {
+                return new \DateTime($value);
+            } catch (\Exception $e) {
+                return $value;
             }
         }
 

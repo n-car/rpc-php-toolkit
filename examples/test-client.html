@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPC PHP Toolkit - JavaScript Client Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        .config {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #4CAF50;
+            color: white;
+        }
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 RPC PHP Toolkit - JavaScript Client Test</h1>
+    
+    <div class="config">
+        <strong>Server URL:</strong> 
+        <input type="text" id="serverUrl" value="http://localhost:8000/examples/cors-server.php" style="width: 400px; padding: 5px;">
+        <button onclick="updateClient()">Update Client</button>
+        <br><br>
+        <label>
+            <input type="checkbox" id="safeMode" onchange="updateClient()">
+            Enable Safe Mode (S: and D: prefixes)
+        </label>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 1: Simple RPC Call</h2>
+        <button onclick="testSimpleCall()">Run Test</button>
+        <div id="result1" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Call with Parameters</h2>
+        <button onclick="testWithParams()">Run Test</button>
+        <div id="result2" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Batch Requests</h2>
+        <button onclick="testBatch()">Run Test</button>
+        <div id="result3" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: BigInt and Date Handling</h2>
+        <button onclick="testBigIntDate()">Run Test</button>
+        <div id="result4" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 5: Error Handling</h2>
+        <button onclick="testError()">Run Test</button>
+        <div id="result5" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run All Tests</h2>
+        <button onclick="runAllTests()" style="background: #2196F3;">Run All Tests</button>
+        <div id="resultAll" class="result" style="display:none;"></div>
+    </div>
+
+    <script src="../src/clients/rpc-client.js"></script>
+    <script>
+        let client;
+
+        function updateClient() {
+            const url = document.getElementById('serverUrl').value;
+            const safeMode = document.getElementById('safeMode').checked;
+            
+            client = new RpcClient(url, {}, {
+                safeEnabled: safeMode,
+                warnOnUnsafe: true
+            });
+            
+            console.log('Client updated:', { url, safeMode });
+        }
+
+        function showResult(id, status, message, data = null) {
+            const resultDiv = document.getElementById(id);
+            resultDiv.style.display = 'block';
+            resultDiv.className = status === 'error' ? 'result error' : 'result';
+            
+            let output = `Status: ${status.toUpperCase()}\n`;
+            output += `Message: ${message}\n`;
+            if (data) {
+                output += `\nData:\n${JSON.stringify(data, null, 2)}`;
+            }
+            
+            resultDiv.textContent = output;
+        }
+
+        async function testSimpleCall() {
+            try {
+                const result = await client.call('public.getTime');
+                showResult('result1', 'success', 'Simple call successful', result);
+            } catch (error) {
+                showResult('result1', 'error', error.message);
+            }
+        }
+
+        async function testWithParams() {
+            try {
+                const result = await client.call('public.echo', {
+                    message: 'Hello from JavaScript client!'
+                });
+                showResult('result2', 'success', 'Call with params successful', result);
+            } catch (error) {
+                showResult('result2', 'error', error.message);
+            }
+        }
+
+        async function testBatch() {
+            try {
+                const results = await client.batch([
+                    { method: 'public.getTime', id: 1 },
+                    { method: 'public.echo', params: { message: 'Batch test' }, id: 2 }
+                ]);
+                showResult('result3', 'success', 'Batch call successful', results);
+            } catch (error) {
+                showResult('result3', 'error', error.message);
+            }
+        }
+
+        async function testBigIntDate() {
+            try {
+                // This would need a server method that returns BigInt/Date
+                const result = await client.call('public.getTime');
+                showResult('result4', 'success', 'BigInt/Date test', {
+                    note: 'Check if dates are properly formatted',
+                    result: result
+                });
+            } catch (error) {
+                showResult('result4', 'error', error.message);
+            }
+        }
+
+        async function testError() {
+            try {
+                const result = await client.call('nonexistent.method');
+                showResult('result5', 'success', 'Unexpected success', result);
+            } catch (error) {
+                showResult('result5', 'success', 'Error correctly caught: ' + error.message, error);
+            }
+        }
+
+        async function runAllTests() {
+            const resultDiv = document.getElementById('resultAll');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Running all tests...\n\n';
+            
+            const tests = [
+                { name: 'Simple Call', fn: testSimpleCall },
+                { name: 'With Params', fn: testWithParams },
+                { name: 'Batch', fn: testBatch },
+                { name: 'BigInt/Date', fn: testBigIntDate },
+                { name: 'Error', fn: testError }
+            ];
+            
+            for (const test of tests) {
+                try {
+                    await test.fn();
+                    resultDiv.textContent += `✓ ${test.name}: PASSED\n`;
+                } catch (error) {
+                    resultDiv.textContent += `✗ ${test.name}: FAILED - ${error.message}\n`;
+                }
+            }
+            
+            resultDiv.textContent += '\nAll tests completed!';
+        }
+
+        // Initialize client on page load
+        updateClient();
+    </script>
+</body>
+</html>

@@ -4,121 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use RpcPhpToolkit\Client\RpcClient;
+
 /**
- * PHP client to test the RPC server
+ * Simple example client usage
+ * For full RpcClient implementation, see src/Client/RpcClient.php
  */
-
-class RpcClient
-{
-    private string $url;
-    private array $headers;
-    private int $timeout;
-
-    public function __construct(string $url, array $headers = [], int $timeout = 30)
-    {
-        $this->url = $url;
-        $this->headers = array_merge([
-            'Content-Type: application/json',
-            'Accept: application/json'
-        ], $headers);
-        $this->timeout = $timeout;
-    }
-
-    /**
-     * Executes a single RPC call
-     */
-    public function call(string $method, array $params = [], $id = null): array
-    {
-        $request = [
-            'jsonrpc' => '2.0',
-            'method' => $method,
-            'params' => $params
-        ];
-
-        if ($id !== null) {
-            $request['id'] = $id;
-        }
-
-        return $this->sendRequest($request);
-    }
-
-    /**
-     * Executes an RPC notification (no response)
-     */
-    public function notify(string $method, array $params = []): void
-    {
-        $request = [
-            'jsonrpc' => '2.0',
-            'method' => $method,
-            'params' => $params
-        ];
-
-        $this->sendRequest($request, false);
-    }
-
-    /**
-     * Executes batch requests
-     */
-    public function batch(array $requests): array
-    {
-        $batchRequest = [];
-        
-        foreach ($requests as $request) {
-            $rpcRequest = [
-                'jsonrpc' => '2.0',
-                'method' => $request['method'],
-                'params' => $request['params'] ?? []
-            ];
-            
-            if (isset($request['id'])) {
-                $rpcRequest['id'] = $request['id'];
-            }
-            
-            $batchRequest[] = $rpcRequest;
-        }
-
-        return $this->sendRequest($batchRequest);
-    }
-
-    /**
-     * Sends the HTTP request
-     */
-    private function sendRequest(array $request, bool $expectResponse = true): array
-    {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => implode("\r\n", $this->headers),
-                'content' => json_encode($request),
-                'timeout' => $this->timeout
-            ]
-        ]);
-
-        $response = file_get_contents($this->url, false, $context);
-        
-        if ($response === false) {
-            throw new \Exception('HTTP request error');
-        }
-
-        if (!$expectResponse) {
-            return [];
-        }
-
-        $decoded = json_decode($response, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception('Invalid JSON response: ' . json_last_error_msg());
-        }
-
-        return $decoded;
-    }
-
-    public function setAuthToken(string $token): self
-    {
-        $this->headers['Authorization'] = 'Bearer ' . $token;
-        return $this;
-    }
-}
 
 // ========== USAGE EXAMPLES ==========
 

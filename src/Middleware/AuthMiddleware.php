@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RpcPhpToolkit\Middleware;
 
+use RpcPhpToolkit\Exceptions\AuthException;
+
 /**
  * Middleware for basic authentication
  */
@@ -34,9 +36,8 @@ class AuthMiddleware implements MiddlewareInterface
         
         // Extract authentication token
         $token = $this->extractToken();
-        
         if (!$token && $this->required) {
-            throw new \RpcPhpToolkit\Exceptions\RpcException(
+            throw new AuthException(
                 'Authentication required',
                 -32001,
                 ['reason' => 'Missing authentication token']
@@ -46,9 +47,8 @@ class AuthMiddleware implements MiddlewareInterface
         if ($token) {
             // Authenticate user
             $user = ($this->authenticator)($token);
-            
             if (!$user && $this->required) {
-                throw new \RpcPhpToolkit\Exceptions\RpcException(
+                throw new AuthException(
                     'Authentication failed',
                     -32002,
                     ['reason' => 'Invalid authentication token']
