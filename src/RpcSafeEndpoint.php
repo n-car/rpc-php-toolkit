@@ -8,19 +8,19 @@ use RpcPhpToolkit\RpcEndpoint;
 
 /**
  * RpcSafeEndpoint - Convenience class with Safe Mode preset enabled
- * 
+ *
  * This class extends RpcEndpoint and automatically enables Safe Mode,
  * providing a cleaner API for safe RPC endpoints without manually
  * setting safeEnabled in options.
- * 
+ *
  * Safe Mode enables safe serialization of special types like DateTime,
  * NaN, INF, and provides better type preservation across RPC calls.
- * 
+ *
  * @example
  * ```php
  * // Instead of:
  * $rpc = new RpcEndpoint('/api', $context, ['safeEnabled' => true]);
- * 
+ *
  * // Use:
  * $rpc = new RpcSafeEndpoint('/api', $context);
  * ```

@@ -8,20 +8,20 @@ use RpcPhpToolkit\Client\RpcClient;
 
 /**
  * RpcSafeClient - Convenience class with Safe Mode preset enabled
- * 
+ *
  * This class extends RpcClient and automatically enables Safe Mode,
  * providing a cleaner API for safe RPC clients without manually
  * setting safeEnabled in options.
- * 
+ *
  * Safe Mode enables safe deserialization of special types like DateTime,
  * BigInt (as strings), NaN, INF, and provides better type preservation
  * across RPC calls.
- * 
+ *
  * @example
  * ```php
  * // Instead of:
  * $client = new RpcClient('http://localhost:3000/api', [], ['safeEnabled' => true]);
- * 
+ *
  * // Use:
  * $client = new RpcSafeClient('http://localhost:3000/api');
  * ```
