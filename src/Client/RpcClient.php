@@ -202,7 +202,7 @@ class RpcClient
     public function setAuthToken(string $token): self
     {
         // Remove existing Authorization header
-        $this->headers = array_filter($this->headers, function($header) {
+        $this->headers = array_filter($this->headers, function ($header) {
             return !str_starts_with($header, 'Authorization:');
         });
 

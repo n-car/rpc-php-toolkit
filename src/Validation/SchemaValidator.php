@@ -207,7 +207,7 @@ class SchemaValidator
 
     private function validateFormat(string $value, string $format): array
     {
-        return match($format) {
+        return match ($format) {
             'email' => filter_var($value, FILTER_VALIDATE_EMAIL) ? [] : ['Invalid email'],
             'uri' => filter_var($value, FILTER_VALIDATE_URL) ? [] : ['Invalid URI'],
             'date' => $this->validateDate($value),
@@ -237,7 +237,7 @@ class SchemaValidator
 
     private function getValueType(mixed $value): string
     {
-        return match(true) {
+        return match (true) {
             is_null($value) => 'null',
             is_bool($value) => 'boolean',
             is_int($value) => 'integer',

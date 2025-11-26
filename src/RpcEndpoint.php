@@ -323,7 +323,6 @@ class RpcEndpoint
             header('X-RPC-Safe-Enabled: ' . ($this->options['safeEnabled'] ? 'true' : 'false'));
 
             return $this->encodeJson($response);
-
         } catch (\Throwable $e) {
             $this->logger?->error('Error handling RPC request', [
                 'error' => $e->getMessage(),
@@ -391,7 +390,6 @@ class RpcEndpoint
             }
 
             return $this->createSuccessResponse($id, $result);
-
         } catch (RpcException $e) {
             return $this->createErrorResponse($request['id'] ?? null, $e);
         } catch (\Throwable $e) {
@@ -640,7 +638,7 @@ class RpcEndpoint
 
             if (file_exists($clientPath) && is_file($clientPath)) {
                 $ext = pathinfo($clientPath, PATHINFO_EXTENSION);
-                $contentType = match($ext) {
+                $contentType = match ($ext) {
                     'js' => 'application/javascript',
                     'mjs' => 'application/javascript',
                     'css' => 'text/css',
@@ -655,11 +653,38 @@ class RpcEndpoint
     }
 
     // Getters
-    public function getEndpoint(): string { return $this->endpoint; }
-    public function getMethods(): array { return array_keys($this->methods); }
-    public function getLogger(): ?Logger { return $this->logger ?? null; }
-    public function getMiddleware(): ?MiddlewareManager { return $this->middleware ?? null; }
-    public function getValidator(): ?SchemaValidator { return $this->validator ?? null; }
-    public function getContext(): mixed { return $this->context; }
-    public function getOptions(): array { return $this->options; }
+    public function getEndpoint(): string
+    {
+        return $this->endpoint;
+    }
+
+    public function getMethods(): array
+    {
+        return array_keys($this->methods);
+    }
+
+    public function getLogger(): ?Logger
+    {
+        return $this->logger ?? null;
+    }
+
+    public function getMiddleware(): ?MiddlewareManager
+    {
+        return $this->middleware ?? null;
+    }
+
+    public function getValidator(): ?SchemaValidator
+    {
+        return $this->validator ?? null;
+    }
+
+    public function getContext(): mixed
+    {
+        return $this->context;
+    }
+
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
 }

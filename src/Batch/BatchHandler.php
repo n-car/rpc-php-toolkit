@@ -54,7 +54,6 @@ class BatchHandler
                 if (!empty($response)) {
                     $responses[] = $response;
                 }
-
             } catch (\Throwable $e) {
                 $this->logger?->error("Error in batch request #{$index}", [
                     'error' => $e->getMessage(),
@@ -124,7 +123,6 @@ class BatchHandler
                     if (!empty($response)) {
                         $responses[] = $response;
                     }
-
                 } catch (\Throwable $e) {
                     $this->logger?->error("Error in request #{$index}", [
                         'error' => $e->getMessage()

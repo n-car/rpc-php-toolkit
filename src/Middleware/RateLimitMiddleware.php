@@ -72,7 +72,7 @@ class RateLimitMiddleware implements MiddlewareInterface
 
     private function getIdentifierKey(array $context): string
     {
-        return match($this->identifier) {
+        return match ($this->identifier) {
             'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
             'user_id' => $context['user_id'] ?? 'anonymous',
             'session' => session_id() ?: 'no_session',
