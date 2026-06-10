@@ -190,12 +190,13 @@ class RpcClient
             return [];
         }
 
-        $responseHeaders = $http_response_header ?? [];
+        $responseHeaders = $http_response_header;
         $safeHeader = $this->getResponseHeader($responseHeaders, 'X-RPC-Safe-Enabled');
 
         if ($this->options['safeEnabled'] && $safeHeader === null) {
             throw new InternalErrorException(
-                'RPC Compatibility Error: Client has safe serialization enabled but server did not respond with compatibility header (X-RPC-Safe-Enabled).'
+                'RPC Compatibility Error: Client has safe serialization enabled but server did not respond ' .
+                'with compatibility header (X-RPC-Safe-Enabled).'
             );
         }
 
