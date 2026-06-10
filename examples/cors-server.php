@@ -22,7 +22,7 @@ $rpc->getMiddleware()->add(
     new CorsMiddleware([
         'origin' => '*',  // Allow all origins (or specify: ['https://example.com'])
         'methods' => ['GET', 'POST', 'OPTIONS'],
-        'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe'],
+        'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe-Enabled', 'X-RPC-Safe'],
         'credentials' => false,
         'maxAge' => 86400  // 24 hours preflight cache
     ]),

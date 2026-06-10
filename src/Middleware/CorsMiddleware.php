@@ -27,7 +27,7 @@ class CorsMiddleware implements MiddlewareInterface
         $this->options = array_merge([
             'origin' => '*',
             'methods' => ['GET', 'POST', 'OPTIONS'],
-            'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe'],
+            'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe-Enabled', 'X-RPC-Safe'],
             'credentials' => false,
             'maxAge' => 86400,
             'exposeHeaders' => []

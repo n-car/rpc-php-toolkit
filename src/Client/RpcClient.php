@@ -8,6 +8,7 @@ use RpcPhpToolkit\Exceptions\InternalErrorException;
 use RpcPhpToolkit\Exceptions\MethodNotFoundException;
 use RpcPhpToolkit\Exceptions\InvalidParamsException;
 use RpcPhpToolkit\Exceptions\InvalidRequestException;
+use RpcPhpToolkit\Exceptions\RemoteRpcException;
 
 /**
  * RPC Client for making JSON-RPC 2.0 calls
@@ -78,9 +79,9 @@ class RpcClient
             } elseif ($errorCode === -32602) {
                 throw new InvalidParamsException($errorMessage, $errorData);
             } elseif ($errorCode === -32600) {
-                throw new InvalidRequestException($errorMessage);
+                throw new InvalidRequestException($errorMessage, $errorData);
             } else {
-                throw new InternalErrorException($errorMessage);
+                throw new RemoteRpcException($errorMessage, $errorCode, $errorData);
             }
         }
 
@@ -142,6 +143,7 @@ class RpcClient
      */
     private function sendRequest(array $request, bool $expectResponse = true): array
     {
+        $request = $this->prepareRequest($request);
         $jsonRequest = json_encode($request);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
@@ -151,7 +153,7 @@ class RpcClient
         // Add safe mode header if enabled
         $headers = $this->headers;
         if ($this->options['safeEnabled']) {
-            $headers[] = 'X-RPC-Safe: true';
+            $headers[] = 'X-RPC-Safe-Enabled: true';
         }
 
         $contextOptions = [
@@ -184,13 +186,163 @@ class RpcClient
             return [];
         }
 
+        if ($response === '') {
+            return [];
+        }
+
+        $responseHeaders = $http_response_header ?? [];
+        $safeHeader = $this->getResponseHeader($responseHeaders, 'X-RPC-Safe-Enabled');
+
+        if ($this->options['safeEnabled'] && $safeHeader === null) {
+            throw new InternalErrorException(
+                'RPC Compatibility Error: Client has safe serialization enabled but server did not respond with compatibility header (X-RPC-Safe-Enabled).'
+            );
+        }
+
+        $serverSafeEnabled = strtolower((string) $safeHeader) === 'true';
         $decoded = json_decode($response, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new InternalErrorException('Invalid JSON response: ' . json_last_error_msg());
         }
 
-        return $decoded;
+        return $this->decodeResponse($decoded, $serverSafeEnabled);
+    }
+
+    private function prepareRequest(array $request): array
+    {
+        if (!$this->options['safeEnabled']) {
+            return $request;
+        }
+
+        if ($this->isList($request)) {
+            return array_map(fn($item) => is_array($item) ? $this->prepareRequest($item) : $item, $request);
+        }
+
+        if (array_key_exists('params', $request)) {
+            $request['params'] = $this->serializeValue($request['params']);
+        }
+
+        return $request;
+    }
+
+    private function decodeResponse(array $response, bool $safeEnabled): array
+    {
+        if ($this->isList($response)) {
+            return array_map(
+                fn($item) => is_array($item) ? $this->decodeSingleResponse($item, $safeEnabled) : $item,
+                $response
+            );
+        }
+
+        return $this->decodeSingleResponse($response, $safeEnabled);
+    }
+
+    private function decodeSingleResponse(array $response, bool $safeEnabled): array
+    {
+        if (array_key_exists('result', $response)) {
+            $response['result'] = $this->deserializeValue($response['result'], $safeEnabled);
+        }
+
+        if (isset($response['error']) && is_array($response['error']) && array_key_exists('data', $response['error'])) {
+            $response['error']['data'] = $this->deserializeValue($response['error']['data'], $safeEnabled);
+        }
+
+        return $response;
+    }
+
+    private function serializeValue(mixed $value): mixed
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return 'D:' . $value->format('c');
+        }
+
+        if (is_int($value) && PHP_INT_SIZE === 8 && abs($value) > 9007199254740991) {
+            return (string) $value . 'n';
+        }
+
+        if (is_string($value)) {
+            return 'S:' . $value;
+        }
+
+        if (is_array($value)) {
+            $result = [];
+            foreach ($value as $key => $item) {
+                $result[$key] = $this->serializeValue($item);
+            }
+            return $result;
+        }
+
+        if (is_object($value)) {
+            if ($value instanceof \JsonSerializable) {
+                return $this->serializeValue($value->jsonSerialize());
+            }
+
+            if (method_exists($value, 'toArray')) {
+                return $this->serializeValue($value->toArray());
+            }
+        }
+
+        return $value;
+    }
+
+    private function deserializeValue(mixed $value, bool $safeEnabled): mixed
+    {
+        if (is_array($value)) {
+            $result = [];
+            foreach ($value as $key => $item) {
+                $result[$key] = $this->deserializeValue($item, $safeEnabled);
+            }
+            return $result;
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        if ($safeEnabled && str_starts_with($value, 'S:')) {
+            return substr($value, 2);
+        }
+
+        if ($safeEnabled && str_starts_with($value, 'D:')) {
+            try {
+                return new \DateTimeImmutable(substr($value, 2));
+            } catch (\Exception) {
+                return $value;
+            }
+        }
+
+        if (preg_match('/^-?\d+n$/', $value)) {
+            return $value;
+        }
+
+        if (!$safeEnabled && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $value)) {
+            try {
+                return new \DateTimeImmutable($value);
+            } catch (\Exception) {
+                return $value;
+            }
+        }
+
+        return $value;
+    }
+
+    private function getResponseHeader(array $headers, string $name): ?string
+    {
+        $prefix = strtolower($name) . ':';
+
+        foreach ($headers as $header) {
+            if (str_starts_with(strtolower($header), $prefix)) {
+                return trim(substr($header, strlen($prefix)));
+            }
+        }
+
+        return null;
+    }
+
+    private function isList(array $array): bool
+    {
+        return $array === [] || array_keys($array) === range(0, count($array) - 1);
     }
 
     /**

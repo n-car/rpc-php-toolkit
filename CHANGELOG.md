@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified `examples/client.php` to use official RpcClient class
 - Updated README with comprehensive client documentation
 - Enhanced serialization to support safe mode with D: and S: prefixes
-- Added X-RPC-Safe header for client-server safe mode negotiation
+- Added `X-RPC-Safe-Enabled` header for client-server Safe Mode negotiation
 - **Updated JavaScript clients to latest version from rpc-express-toolkit** (404 lines, full BigInt/Date support, safe mode)
 
 ### Fixed

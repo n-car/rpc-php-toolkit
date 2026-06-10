@@ -52,7 +52,7 @@ class RpcSafeTest extends TestCase
         $response = $endpoint->handleRequest($request);
         $result = json_decode($response, true);
 
-        $this->assertEquals('ok', $result['result']);
+        $this->assertEquals('S:ok', $result['result']);
     }
 
     public function testSafeClientSendsCorrectHeaders(): void
@@ -87,8 +87,9 @@ class RpcSafeTest extends TestCase
         $response = $endpoint->handleRequest($request);
         $result = json_decode($response, true);
 
-        $this->assertArrayHasKey('result', $result);
-        // In safe mode, special values are handled appropriately
+        $this->assertSame('S:INF', $result['result']['inf']);
+        $this->assertSame('S:NaN', $result['result']['nan']);
+        $this->assertStringStartsWith('D:2024-01-01T00:00:00', $result['result']['date']);
     }
 
     public function testSafeEndpointInheritsFromRpcEndpoint(): void

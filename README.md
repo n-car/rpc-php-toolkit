@@ -151,7 +151,7 @@ $rpc->getMiddleware()->add(
     new CorsMiddleware([
         'origin' => '*',  // or specific origin(s)
         'methods' => ['GET', 'POST', 'OPTIONS'],
-        'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe'],
+        'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe-Enabled', 'X-RPC-Safe'],
         'credentials' => false,
         'maxAge' => 86400
     ]),
@@ -362,7 +362,8 @@ $options = [
     'enableMiddleware' => true,      // Enable middleware system
     'maxBatchSize' => 100,          // Maximum batch size
     'timeout' => 30,                // Timeout in seconds
-    'safeEnabled' => false,         // Enable safe type serialization (S:, D: prefixes)
+    'safeEnabled' => false,         // Enable safe type serialization (S:, D:, n markers)
+    'requireSafeHeader' => false,   // Require X-RPC-Safe-Enabled when Safe Mode is enabled
     'warnOnUnsafe' => true,         // Warn when BigInt/Date serialized without safe mode
     'errorProperties' => [...]      // Error properties to include
 ];
@@ -370,12 +371,13 @@ $options = [
 
 ### Safe Serialization Mode
 
-Like the Express version, PHP toolkit supports **Safe Mode** for type-safe serialization:
+Like the Express version, PHP toolkit supports **Safe Mode** for type-safe serialization. Standard JSON-RPC 2.0 remains the default when `safeEnabled` is `false`.
 
 ```php
-// Enable safe mode
+// Enable safe mode with explicit HTTP header negotiation
 $rpc = new RpcEndpoint('/api/rpc', $context, [
-    'safeEnabled' => true
+    'safeEnabled' => true,
+    'requireSafeHeader' => true
 ]);
 
 // Client with safe mode
@@ -388,17 +390,19 @@ $client = new RpcClient('http://localhost:8000/api/rpc', [], [
 - **Strings**: Prefixed with `S:` → `"hello"` becomes `"S:hello"`
 - **Dates**: Prefixed with `D:` → ISO string becomes `"D:2025-11-26T10:30:00Z"`
 - **Large integers**: Suffixed with `n` → `9007199254740992` becomes `"9007199254740992n"`
+- **HTTP negotiation**: Safe clients and servers exchange `X-RPC-Safe-Enabled: true`
 
 This prevents ambiguity when deserializing JSON, especially useful when:
 - You control both client and server
 - Type safety is critical
 - Working with BigInt or Date values
 
+Use `RpcSafeEndpoint` and `RpcSafeClient` when both sides are RPC Toolkit implementations and Safe Mode should be enabled by default. PHP preserves BigInt markers as strings; it does not expose JavaScript `BigInt` semantics.
+
 **Default behavior** (safeEnabled: false):
 - Maximum JSON-RPC 2.0 compatibility
 - Standard serialization without prefixes
 - Warnings logged when BigInt/Date detected (disable with `warnOnUnsafe: false`)
-```
 
 ### JSON-RPC Error Codes
 

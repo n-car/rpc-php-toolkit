@@ -42,6 +42,7 @@ class RpcSafeEndpoint extends RpcEndpoint
         // Merge user options with safe defaults
         $safeOptions = array_merge([
             'safeEnabled' => true,
+            'requireSafeHeader' => true,
             'sanitizeErrors' => true,
         ], $options);
 

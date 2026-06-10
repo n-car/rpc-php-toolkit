@@ -55,6 +55,7 @@ class RpcEndpoint
             'errorProperties' => self::DEFAULT_ERROR_PROPERTIES,
             'safeEnabled' => false,  // Safe serialization disabled by default (like Express)
             'warnOnUnsafe' => true,  // Warn when BigInt/Date serialized without safe mode
+            'requireSafeHeader' => false,  // Strict HTTP Safe Mode negotiation disabled by default
             'enableIntrospection' => false,  // Introspection disabled by default
             'introspectionPrefix' => '__rpc',  // Prefix for introspection methods
         ], $options);
@@ -298,7 +299,18 @@ class RpcEndpoint
             $request = $this->decodeJson($input);
 
             // Check for safe mode header from client
-            $clientSafeEnabled = ($_SERVER['HTTP_X_RPC_SAFE'] ?? 'false') === 'true';
+            $clientSafeEnabled = $this->isClientSafeModeEnabled();
+
+            if (
+                $this->options['safeEnabled'] &&
+                $this->options['requireSafeHeader'] &&
+                $this->isHttpRequest() &&
+                !$this->hasSafeModeHeader()
+            ) {
+                throw new InvalidRequestException(
+                    'Safe Mode requires X-RPC-Safe-Enabled header'
+                );
+            }
 
             // Log request
             $this->logger?->info('RPC request received', [
@@ -319,10 +331,13 @@ class RpcEndpoint
                     throw new InternalErrorException('Batch handler not initialized');
                 }
 
-                $response = $this->batchHandler->handleBatch($request, [$this, 'processSingleRequest']);
+                $response = $this->batchHandler->handleBatch(
+                    $request,
+                    fn($singleRequest) => $this->processSingleRequest($singleRequest, $clientSafeEnabled)
+                );
             } else {
                 // Single request
-                $response = $this->processSingleRequest($request);
+                $response = $this->processSingleRequest($request, $clientSafeEnabled);
             }
 
             // Log execution time
@@ -332,9 +347,14 @@ class RpcEndpoint
                 'response_id' => $response['id'] ?? null
             ]);
 
-            // Add safe mode header to response (only if headers not sent)
-            if (!headers_sent()) {
-                header('X-RPC-Safe-Enabled: ' . ($this->options['safeEnabled'] ? 'true' : 'false'));
+            $this->sendSafeModeHeader();
+
+            if ($response === []) {
+                if ($this->isHttpRequest() && !headers_sent()) {
+                    http_response_code(204);
+                }
+
+                return '';
             }
 
             return $this->encodeJson($response);
@@ -345,6 +365,8 @@ class RpcEndpoint
                 'line' => $e->getLine()
             ]);
 
+            $this->sendSafeModeHeader();
+
             $errorResponse = $this->createErrorResponse(null, $e);
             return $this->encodeJson($errorResponse);
         }
@@ -353,7 +375,7 @@ class RpcEndpoint
     /**
      * Processes a single RPC request
      */
-    public function processSingleRequest(array $request): array
+    public function processSingleRequest(array $request, bool $clientSafeEnabled = false): array
     {
         try {
             // Basic request validation
@@ -362,6 +384,10 @@ class RpcEndpoint
             $method = $request['method'];
             $params = $request['params'] ?? [];
             $id = $request['id'] ?? null;
+
+            if ($clientSafeEnabled) {
+                $params = $this->deserializeValue($params, true);
+            }
 
             // Check method existence
             if (!isset($this->methods[$method])) {
@@ -408,7 +434,7 @@ class RpcEndpoint
         } catch (RpcException $e) {
             return $this->createErrorResponse($request['id'] ?? null, $e);
         } catch (\Throwable $e) {
-            $rpcError = new InternalErrorException($e->getMessage(), $e);
+            $rpcError = new InternalErrorException($e->getMessage(), null, $e);
             return $this->createErrorResponse($request['id'] ?? null, $rpcError);
         }
     }
@@ -470,8 +496,10 @@ class RpcEndpoint
 
         // Add additional data if present and not sanitized
         if (!$this->options['sanitizeErrors']) {
-            if ($error instanceof RpcException && $error->getData()) {
-                $errorData['data'] = $error->getData();
+            if ($error instanceof RpcException) {
+                if ($error->getData() !== null) {
+                    $errorData['data'] = $this->serializeValue($error->getData());
+                }
             } else {
                 // Serialize complete error if not sanitized
                 $errorData['data'] = $this->serializeError($error);
@@ -494,8 +522,31 @@ class RpcEndpoint
         $properties = $this->options['errorProperties'];
 
         foreach ($properties as $property) {
-            if (property_exists($error, $property)) {
-                $result[$property] = $error->$property;
+            switch ($property) {
+                case 'code':
+                    $result['code'] = $error->getCode();
+                    break;
+                case 'message':
+                    $result['message'] = $error->getMessage();
+                    break;
+                case 'file':
+                    $result['file'] = $error->getFile();
+                    break;
+                case 'line':
+                    $result['line'] = $error->getLine();
+                    break;
+                case 'trace':
+                    $result['trace'] = $error->getTrace();
+                    break;
+                case 'previous':
+                    break;
+                default:
+                    if (property_exists($error, $property)) {
+                        $reflection = new \ReflectionProperty($error, $property);
+                        if ($reflection->isPublic()) {
+                            $result[$property] = $reflection->getValue($error);
+                        }
+                    }
             }
         }
 
@@ -546,7 +597,7 @@ class RpcEndpoint
 
         // Handle strings - add S: prefix if safe mode enabled
         if (is_string($value)) {
-            return $value;
+            return $this->options['safeEnabled'] ? 'S:' . $value : $value;
         }
 
         // Handle arrays
@@ -576,7 +627,11 @@ class RpcEndpoint
         if (!is_string($value)) {
             // Recursively deserialize arrays
             if (is_array($value)) {
-                return array_map(fn($v) => $this->deserializeValue($v, $safeEnabled), $value);
+                $result = [];
+                foreach ($value as $key => $item) {
+                    $result[$key] = $this->deserializeValue($item, $safeEnabled);
+                }
+                return $result;
             }
             return $value;
         }
@@ -598,7 +653,7 @@ class RpcEndpoint
 
         // BigInt check (ends with 'n')
         if (str_ends_with($value, 'n') && is_numeric(substr($value, 0, -1))) {
-            return (int)substr($value, 0, -1);
+            return $value;
         }
 
         // ISO date detection (if not safe mode)
@@ -611,6 +666,36 @@ class RpcEndpoint
         }
 
         return $value;
+    }
+
+    private function isClientSafeModeEnabled(): bool
+    {
+        $value = $this->getSafeModeHeaderValue();
+        return $value !== null && strtolower($value) === 'true';
+    }
+
+    private function hasSafeModeHeader(): bool
+    {
+        return $this->getSafeModeHeaderValue() !== null;
+    }
+
+    private function getSafeModeHeaderValue(): ?string
+    {
+        return $_SERVER['HTTP_X_RPC_SAFE_ENABLED']
+            ?? $_SERVER['HTTP_X_RPC_SAFE']
+            ?? null;
+    }
+
+    private function sendSafeModeHeader(): void
+    {
+        if (!headers_sent()) {
+            header('X-RPC-Safe-Enabled: ' . ($this->options['safeEnabled'] ? 'true' : 'false'));
+        }
+    }
+
+    private function isHttpRequest(): bool
+    {
+        return isset($_SERVER['REQUEST_METHOD']) && PHP_SAPI !== 'cli';
     }
 
     /**
