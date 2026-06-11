@@ -474,4 +474,4 @@ This project is distributed under the MIT License. See the `LICENSE` file for de
 
 ---
 
-**RPC PHP Toolkit** - A professional JSON-RPC 2.0 implementation for PHP with enterprise features.
+**RPC PHP Toolkit** - A JSON-RPC 2.0 implementation for PHP with middleware, schema validation, batch processing, introspection, and optional Safe Mode.
