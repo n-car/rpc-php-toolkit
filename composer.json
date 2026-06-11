@@ -1,6 +1,6 @@
 {
     "name": "rpc-php-toolkit/rpc-php-toolkit",
-    "description": "Enterprise-ready JSON-RPC 2.0 toolkit for PHP with simplified APIs, structured logging, middleware system, schema validation, batch processing, CORS support, and comprehensive BigInt/Date serialization with Safe Mode",
+    "description": "PHP JSON-RPC 2.0 client/server toolkit with middleware, schema validation, batch processing, introspection, and optional Safe Mode",
     "type": "library",
     "keywords": [
         "json-rpc",
@@ -10,7 +10,9 @@
         "middleware",
         "validation",
         "bigint",
-        "enterprise",
+        "safe-mode",
+        "introspection",
+        "json-rpc-2.0",
         "php",
         "toolkit"
     ],

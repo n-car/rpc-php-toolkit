@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-An enterprise-ready JSON-RPC 2.0 library for PHP applications with simplified APIs, structured logging, middleware system, schema validation, batch processing, and full BigInt/Date serialization support.
+PHP JSON-RPC 2.0 client/server toolkit with middleware, schema validation, batch processing, introspection, and optional RPC Toolkit Safe Mode.
 
 ## Table of Contents
 
@@ -33,16 +33,18 @@ An enterprise-ready JSON-RPC 2.0 library for PHP applications with simplified AP
 - **Cross-Platform:** Works in both browser and PHP server environments
 - **Error Handling:** Comprehensive error responses with sanitization options
 
-### Enterprise Features
-- **🔧 Structured Logging:** Configurable logging with multiple transports and levels
-- **⚡ Middleware System:** Extensible middleware with built-in rate limiting, CORS, auth
-- **✅ Schema Validation:** JSON Schema validation with schema builder utilities
-- **📦 Batch Processing:** Efficient batch request handling with concurrent processing
-- **📊 Health & Metrics:** Built-in health check endpoints and metrics
-- **🔒 Security:** Method whitelisting, authentication, and error sanitization
-- **🎯 Performance:** Request timing, caching support, and optimized serialization
+### Operational Features
+- **Structured Logging:** Configurable logging with multiple transports and levels
+- **Middleware System:** Extensible middleware with built-in rate limiting, CORS, auth
+- **Schema Validation:** JSON Schema validation with schema builder utilities
+- **Batch Processing:** Batch request handling with concurrent processing
+- **Health & Metrics:** Built-in health check endpoints and metrics
+- **Security Controls:** Method whitelisting, authentication hooks, and error sanitization
+- **Request Diagnostics:** Request timing, caching support, and optimized serialization
 
 ## Installation
+
+After publication, install from Packagist with Composer:
 
 ```bash
 composer require rpc-php-toolkit/rpc-php-toolkit
