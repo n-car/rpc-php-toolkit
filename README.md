@@ -47,7 +47,7 @@ PHP JSON-RPC 2.0 client/server toolkit with middleware, schema validation, batch
 After publication, install from Packagist with Composer:
 
 ```bash
-composer require rpc-php-toolkit/rpc-php-toolkit
+composer require n-car/rpc-php-toolkit
 ```
 
 ## Quick Start

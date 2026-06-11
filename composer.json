@@ -1,5 +1,5 @@
 {
-    "name": "rpc-php-toolkit/rpc-php-toolkit",
+    "name": "n-car/rpc-php-toolkit",
     "description": "PHP JSON-RPC 2.0 client/server toolkit with middleware, schema validation, batch processing, introspection, and optional Safe Mode",
     "type": "library",
     "keywords": [
