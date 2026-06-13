@@ -20,9 +20,10 @@
     "authors": [
         {
             "name": "Nicola Carpanese",
-            "email": "nicola.carpanese@gmail.com"
+            "homepage": "https://github.com/n-car"
         }
     ],
+    "homepage": "https://github.com/n-car/rpc-php-toolkit",
     "require": {
         "php": ">=8.0",
         "ext-json": "*",

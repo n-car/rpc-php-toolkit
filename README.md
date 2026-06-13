@@ -4,47 +4,15 @@
 
 PHP JSON-RPC 2.0 client/server toolkit with middleware, schema validation, batch processing, introspection, and optional RPC Toolkit Safe Mode.
 
-## Table of Contents
+Use this package when you need a PHP JSON-RPC endpoint, a PHP HTTP client, or a PHP runtime that interoperates with the broader RPC Toolkit ecosystem.
 
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Advanced Usage](#advanced-usage)
-  - [Configuration Options](#configuration-options)
-  - [Schema Validation](#schema-validation)
-  - [Introspection Methods](#introspection-methods)
-  - [Middleware System](#middleware-system)
-  - [Batch Requests](#batch-requests)
-  - [Structured Logging](#structured-logging)
-  - [Built-in Middleware](#built-in-middleware)
-- [JavaScript Client](#javascript-client)
-- [API Reference](#api-reference)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
+## Standard First
 
-## Features
-
-### Core Features
-- **JSON-RPC 2.0 Compliance:** Fully adheres to JSON-RPC 2.0 specification
-- **Server & Client Support:** Provides server endpoints and PHP & JavaScript client classes
-- **Async Support:** Handles asynchronous operations with Promises
-- **BigInt & Date Serialization:** Robust serialization/deserialization with timezone support
-- **Cross-Platform:** Works in both browser and PHP server environments
-- **Error Handling:** Comprehensive error responses with sanitization options
-
-### Operational Features
-- **Structured Logging:** Configurable logging with multiple transports and levels
-- **Middleware System:** Extensible middleware with built-in rate limiting, CORS, auth
-- **Schema Validation:** JSON Schema validation with schema builder utilities
-- **Batch Processing:** Batch request handling with concurrent processing
-- **Health & Metrics:** Built-in health check endpoints and metrics
-- **Security Controls:** Method whitelisting, authentication hooks, and error sanitization
-- **Request Diagnostics:** Request timing, caching support, and optimized serialization
+Standard JSON-RPC 2.0 is the default behavior. Enable RPC Toolkit Safe Mode only when both sides are compatible endpoints and need type-aware round-tripping for marker-like strings, dates, and large integer markers.
 
 ## Installation
 
-After publication, install from Packagist with Composer:
+Install from Packagist with Composer:
 
 ```bash
 composer require n-car/rpc-php-toolkit
@@ -52,21 +20,14 @@ composer require n-car/rpc-php-toolkit
 
 ## Quick Start
 
-### Basic Setup
-
 ```php
 <?php
 require_once 'vendor/autoload.php';
 
 use RpcPhpToolkit\RpcEndpoint;
 
-// Context object to pass to method handlers
-$context = ['database' => $db, 'config' => $config];
+$rpc = new RpcEndpoint('/api/rpc');
 
-// Create the RPC endpoint
-$rpc = new RpcEndpoint('/api/rpc', $context);
-
-// Add methods
 $rpc->addMethod('getTime', function($params, $context) {
     return [
         'timestamp' => time(),
@@ -75,403 +36,80 @@ $rpc->addMethod('getTime', function($params, $context) {
 });
 
 $rpc->addMethod('echo', function($params, $context) {
-    return ['message' => $params['message'] ?? 'Hello World!'];
+    return ['message' => $params['message'] ?? 'Hello World'];
 });
 
-// Handle requests
 $input = file_get_contents('php://input');
 echo $rpc->handleRequest($input);
 ```
 
-### PHP Client
+## PHP Client
 
 ```php
 use RpcPhpToolkit\Client\RpcClient;
 
-// Create client
-$client = new RpcClient('http://localhost:8000/api/rpc', [], [
-    'timeout' => 30,
-    'verifySSL' => true,
-    'safeEnabled' => false  // Enable safe serialization if needed
-]);
+$client = new RpcClient('http://localhost:8000/api/rpc');
 
-// Single call
-$result = $client->call('getTime');
+$time = $client->call('getTime');
+$echo = $client->call('echo', ['message' => 'Hello']);
 
-// Call with parameters
-$result = $client->call('echo', ['message' => 'Hello!']);
-
-// With authentication
-$client->setAuthToken('your-token-here');
-$result = $client->call('protected.method');
-
-// Batch request
 $results = $client->batch([
     ['method' => 'getTime', 'id' => 1],
-    ['method' => 'echo', 'params' => ['message' => 'Test'], 'id' => 2]
+    ['method' => 'echo', 'params' => ['message' => 'Batch'], 'id' => 2],
 ]);
 
-// Notification (no response)
-$client->notify('log.event', ['data' => 'something']);
+$client->notify('log.event', ['source' => 'php-client']);
 ```
 
-### JavaScript Client
+## Key Capabilities
 
-```javascript
-// Import ES Module
-import RpcClient from './rpc-client.mjs';
+- JSON-RPC 2.0 calls, notifications, and batch requests
+- PHP endpoint and PHP HTTP client
+- Middleware for CORS, authentication, rate limiting, and custom request processing
+- Schema validation for method parameters
+- Optional introspection through `__rpc.*` methods
+- Optional RPC Toolkit Safe Mode over HTTP headers
+- Structured logging hooks and configurable error sanitization
 
-// Or classic script loading
-// <script src="rpc-client.js"></script>
+## Advanced Documentation
 
-const client = new RpcClient('http://localhost:8000/api/rpc');
-
-// Single call
-const result = await client.call('getTime');
-
-// Call with parameters
-const echo = await client.call('echo', {message: 'Hello!'});
-
-// Batch request
-const results = await client.batch([
-    {method: 'getTime', id: 1},
-    {method: 'echo', params: {message: 'Test'}, id: 2}
-]);
-```
-
-## Advanced Usage
-
-### Middleware
-
-```php
-use RpcPhpToolkit\Middleware\RateLimitMiddleware;
-use RpcPhpToolkit\Middleware\AuthMiddleware;
-use RpcPhpToolkit\Middleware\CorsMiddleware;
-
-// CORS support
-$rpc->getMiddleware()->add(
-    new CorsMiddleware([
-        'origin' => '*',  // or specific origin(s)
-        'methods' => ['GET', 'POST', 'OPTIONS'],
-        'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe-Enabled', 'X-RPC-Safe'],
-        'credentials' => false,
-        'maxAge' => 86400
-    ]),
-    'before'
-);
-
-// Rate limiting
-$rpc->getMiddleware()->add(
-    new RateLimitMiddleware(100, 60, 'ip'), 
-    'before'
-);
-
-// Authentication
-$rpc->getMiddleware()->add(
-    new AuthMiddleware(function($token) {
-        return $this->authenticateUser($token);
-    }),
-    'before'
-);
-```
-
-### Schema Validation
-
-```php
-$rpc->addMethod('createUser', function($params, $context) {
-    // User creation logic
-    return ['id' => 123, 'name' => $params['name']];
-}, [
-    'type' => 'object',
-    'properties' => [
-        'name' => [
-            'type' => 'string',
-            'minLength' => 2,
-            'maxLength' => 50
-        ],
-        'email' => [
-            'type' => 'string',
-            'format' => 'email'
-        ]
-    ],
-    'required' => ['name', 'email']
-]);
-```
-
-### Introspection Methods
-
-Enable introspection to expose metadata about registered methods via reserved `__rpc.*` methods:
-
-```php
-// Create endpoint with introspection enabled
-$rpc = new RpcEndpoint('/api/rpc', $context, [
-    'enableIntrospection' => true,      // Enable __rpc.* methods (default: false)
-    'introspectionPrefix' => '__rpc'    // Prefix for introspection methods (configurable)
-]);
-
-// Register methods with public schemas
-$rpc->addMethod('add', function($params, $context) {
-    return $params['a'] + $params['b'];
-}, [
-    'schema' => [
-        'type' => 'object',
-        'properties' => [
-            'a' => ['type' => 'number'],
-            'b' => ['type' => 'number']
-        ],
-        'required' => ['a', 'b']
-    ],
-    'exposeSchema' => true,              // Make schema publicly queryable
-    'description' => 'Add two numbers'   // Method description
-]);
-
-// Available introspection methods:
-
-// __rpc.listMethods() → ["add", "multiply", ...]
-$methods = $client->call('__rpc.listMethods');
-
-// __rpc.describe(['method' => 'add']) → {name, schema, description}
-$info = $client->call('__rpc.describe', ['method' => 'add']);
-
-// __rpc.describeAll() → [{name, schema, description}, ...]
-$allPublic = $client->call('__rpc.describeAll');
-
-// __rpc.version() → {toolkit, version, phpVersion}
-$version = $client->call('__rpc.version');
-
-// __rpc.capabilities() → {batch, introspection, validation, ...}
-$capabilities = $client->call('__rpc.capabilities');
-```
-
-**Security Notes:**
-- Methods with `exposeSchema: false` are hidden from `__rpc.describe`
-- Introspection methods cannot describe themselves
-- Users cannot register methods starting with the introspection prefix
-- The prefix is configurable to avoid conflicts with existing methods
-
-See `examples/introspection/` for complete examples.
-
-### Structured Logging
-
-```php
-use RpcPhpToolkit\Logger\Logger;
-use RpcPhpToolkit\Logger\FileTransport;
-
-$logger = new Logger([
-    'level' => Logger::INFO,
-    'transports' => [
-        new FileTransport([
-            'filename' => 'logs/rpc.log',
-            'format' => 'json'
-        ])
-    ]
-]);
-
-$rpc = new RpcEndpoint('/api/rpc', $context, [
-    'logger' => $logger
-]);
-```
-
-## JavaScript Client
-
-### Browser
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <script src="rpc-client.js"></script>
-</head>
-<body>
-    <script>
-        const client = new RpcClient('http://localhost:8000/api/rpc');
-        
-        client.call('getTime').then(result => {
-            console.log('Server time:', result);
-        });
-    </script>
-</body>
-</html>
-```
-
-### Node.js
-
-```javascript
-const RpcClient = require('./rpc-client.js');
-
-const client = new RpcClient('http://localhost:8000/api/rpc');
-
-async function test() {
-    try {
-        const result = await client.call('getTime');
-        console.log(result);
-    } catch (error) {
-        console.error('RPC Error:', error.message);
-    }
-}
-```
-
-### ES Modules
-
-```javascript
-import RpcClient from './rpc-client.mjs';
-
-const client = new RpcClient('http://localhost:8000/api/rpc');
-const result = await client.call('getTime');
-```
+- [Clients](docs/CLIENTS.md) - PHP client, Safe client, batch calls, notifications, and browser/Node.js client notes.
+- [Schema Validation](docs/SCHEMA_VALIDATION.md) - method parameter schemas and validation errors.
+- [Introspection](docs/INTROSPECTION.md) - `__rpc.listMethods`, `__rpc.describe`, `__rpc.describeAll`, `__rpc.version`, and `__rpc.capabilities`.
+- [Middleware](docs/MIDDLEWARE.md) - CORS, authentication, rate limiting, and custom middleware.
+- [Safe Mode](docs/SAFE_MODE.md) - optional type-aware serialization, headers, marker behavior, and PHP type notes.
+- [Security](docs/SECURITY.md) - production hardening notes for validation, authentication, CORS, errors, and TLS.
 
 ## Examples
 
-The `examples/` folder contains:
+The [`examples/`](examples/) folder contains runnable PHP and cross-runtime examples:
 
-- **`basic-server.php`** - Complete RPC server with all middleware
-- **`client.php`** - Example PHP client with all tests
-- **`browser-test.html`** - Interactive browser testing
+- [`basic-server.php`](examples/basic-server.php) - HTTP endpoint with middleware and validation examples.
+- [`client.php`](examples/client.php) - PHP client calls, batch requests, authentication, and errors.
+- [`safe-mode-example.php`](examples/safe-mode-example.php) - `RpcSafeEndpoint` and `RpcSafeClient` usage.
+- [`php-to-express-client.php`](examples/php-to-express-client.php) - PHP client calling an Express RPC endpoint.
+- [`node-to-php-client.mjs`](examples/node-to-php-client.mjs) - JavaScript client calling a PHP endpoint.
+- [`examples/introspection/`](examples/introspection/) - introspection server/client examples.
 
-### Quick start test server
+Quick local server:
 
 ```bash
 cd examples
 php -S localhost:8000 basic-server.php
 ```
 
-Then open `browser-test.html` in your browser to test the interface.
+## Related Packages
 
-## API Reference
-
-### RpcEndpoint
-
-#### Constructor
-```php
-new RpcEndpoint(string $endpoint = '/rpc', mixed $context = null, array $options = [])
-```
-
-#### Main Methods
-- `addMethod(string $name, callable $handler, array $schema = null, array $middleware = []): self`
-- `removeMethod(string $name): self`
-- `handleRequest(string $input): string`
-- `getLogger(): ?Logger`
-- `getMiddleware(): ?MiddlewareManager`
-
-### Configuration Options
-
-```php
-$options = [
-    'sanitizeErrors' => true,        // Sanitize errors in production
-    'enableBatch' => true,           // Enable batch requests
-    'enableLogging' => true,         // Enable logging
-    'enableValidation' => true,      // Enable schema validation
-    'enableMiddleware' => true,      // Enable middleware system
-    'maxBatchSize' => 100,          // Maximum batch size
-    'timeout' => 30,                // Timeout in seconds
-    'safeEnabled' => false,         // Enable safe type serialization (S:, D:, n markers)
-    'requireSafeHeader' => false,   // Require X-RPC-Safe-Enabled when Safe Mode is enabled
-    'warnOnUnsafe' => true,         // Warn when BigInt/Date serialized without safe mode
-    'errorProperties' => [...]      // Error properties to include
-];
-```
-
-### Safe Serialization Mode
-
-Like the Express version, PHP toolkit supports **Safe Mode** for type-safe serialization. Standard JSON-RPC 2.0 remains the default when `safeEnabled` is `false`.
-
-```php
-// Enable safe mode with explicit HTTP header negotiation
-$rpc = new RpcEndpoint('/api/rpc', $context, [
-    'safeEnabled' => true,
-    'requireSafeHeader' => true
-]);
-
-// Client with safe mode
-$client = new RpcClient('http://localhost:8000/api/rpc', [], [
-    'safeEnabled' => true
-]);
-```
-
-**How it works:**
-- **Strings**: Prefixed with `S:` → `"hello"` becomes `"S:hello"`
-- **Dates**: Prefixed with `D:` → ISO string becomes `"D:2025-11-26T10:30:00Z"`
-- **Large integers**: Suffixed with `n` → `9007199254740992` becomes `"9007199254740992n"`
-- **HTTP negotiation**: Safe clients and servers exchange `X-RPC-Safe-Enabled: true`
-
-This prevents ambiguity when deserializing JSON, especially useful when:
-- You control both client and server
-- Type safety is critical
-- Working with BigInt or Date values
-
-Use `RpcSafeEndpoint` and `RpcSafeClient` when both sides are RPC Toolkit implementations and Safe Mode should be enabled by default. PHP preserves BigInt markers as strings; it does not expose JavaScript `BigInt` semantics.
-
-**Default behavior** (safeEnabled: false):
-- Maximum JSON-RPC 2.0 compatibility
-- Standard serialization without prefixes
-- Warnings logged when BigInt/Date detected (disable with `warnOnUnsafe: false`)
-
-### JSON-RPC Error Codes
-
-- `-32600` - Invalid Request
-- `-32601` - Method not found
-- `-32602` - Invalid params
-- `-32603` - Internal error
-- `-32000` to `-32099` - Implementation specific errors
-
-## Security
-
-- **Error Sanitization**: In production, set `sanitizeErrors: true`
-- **Rate Limiting**: Use `RateLimitMiddleware` to limit requests
-- **Authentication**: Implement `AuthMiddleware` for protected methods
-- **Input Validation**: Use schema validation for all parameters
-- **CORS**: Configure CORS appropriately for browser clients
-
-## Performance
-
-- **Batch Processing**: Use batch requests for multiple operations
-- **Efficient Middleware**: Middleware is executed in optimized order
-- **Async Logging**: Configurable logger for different levels
-- **Caching**: Implement caching at middleware level if needed
-
-#### ⚠️ SSL and self-signed certificates in development (PHP)
-
-If you need to connect to a server with a self-signed certificate during development in PHP, you can disable SSL verification for testing purposes (not recommended in production). For example, with cURL:
-
-```php
-$ch = curl_init('https://localhost:8000/api/rpc');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Disable certificate verification (development only)
-$response = curl_exec($ch);
-curl_close($ch);
-```
-
-Or with Guzzle:
-
-```php
-$client = new \GuzzleHttp\Client([
-    'verify' => false // Disable certificate verification (development only)
-]);
-$response = $client->get('https://localhost:8000/api/rpc');
-```
-
-**Warning:** Disabling SSL verification exposes you to security risks. Use only in local development environments.
-
-## Contributing
-
-1. Fork the project
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- [rpc-toolkit](https://github.com/n-car/rpc-toolkit) - ecosystem hub and compatibility reference
+- [rpc-express-toolkit](https://github.com/n-car/rpc-express-toolkit) - Express implementation
+- [rpc-node-toolkit](https://github.com/n-car/rpc-node-toolkit) - framework-agnostic Node.js core
+- [rpc-toolkit-js-client](https://github.com/n-car/rpc-toolkit-js-client) - shared JavaScript client
+- [rpc-dotnet-toolkit](https://github.com/n-car/rpc-dotnet-toolkit) - .NET implementation
+- [rpc-java-toolkit](https://github.com/n-car/rpc-java-toolkit) - Java and Android implementation
+- [rpc-python-toolkit](https://github.com/n-car/rpc-python-toolkit) - Python implementation
+- [rpc-arduino-toolkit](https://github.com/n-car/rpc-arduino-toolkit) - Arduino/ESP32/ESP8266 implementation
+- [node-red-contrib-rpc-toolkit](https://github.com/n-car/node-red-contrib-rpc-toolkit) - Node-RED nodes
 
 ## License
 
-This project is distributed under the MIT License. See the `LICENSE` file for details.
-
-## 🔗 Related Projects
-
-- **[rpc-express-toolkit](https://github.com/n-car/rpc-express-toolkit)** - Node.js/Express implementation
-- **[rpc-dotnet-toolkit](https://github.com/n-car/rpc-dotnet-toolkit)** - .NET implementation
-- **[rpc-arduino-toolkit](https://github.com/n-car/rpc-arduino-toolkit)** - Arduino/ESP32 implementation
-- **[rpc-java-toolkit](https://github.com/n-car/rpc-java-toolkit)** - Java & Android implementation
-- **[node-red-contrib-rpc-toolkit](https://github.com/n-car/node-red-contrib-rpc-toolkit)** - Node-RED visual programming
-
----
-
-**RPC PHP Toolkit** - A JSON-RPC 2.0 implementation for PHP with middleware, schema validation, batch processing, introspection, and optional Safe Mode.
+MIT. See [LICENSE](LICENSE).

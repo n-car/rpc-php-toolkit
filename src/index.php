@@ -1,11 +1,11 @@
 <?php
 
 /**
- * RPC PHP Toolkit - Libreria enterprise per JSON-RPC 2.0
+ * RPC PHP Toolkit - JSON-RPC 2.0 client/server toolkit for PHP
  *
  * @package RpcPhpToolkit
- * @version 1.0.0
- * @author Nicola Carpanese <nicola.carpanese@gmail.com>
+ * @version see composer.json
+ * @author Nicola Carpanese (https://github.com/n-car)
  * @license MIT
  */
 
