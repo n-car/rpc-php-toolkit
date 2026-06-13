@@ -1,6 +1,11 @@
 # RPC PHP Toolkit
 
+[![CI](https://github.com/n-car/rpc-php-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/n-car/rpc-php-toolkit/actions/workflows/ci.yml)
+[![Packagist Version](https://img.shields.io/packagist/v/n-car/rpc-php-toolkit.svg)](https://packagist.org/packages/n-car/rpc-php-toolkit)
+[![Packagist Downloads](https://img.shields.io/packagist/dt/n-car/rpc-php-toolkit.svg)](https://packagist.org/packages/n-car/rpc-php-toolkit)
+[![PHP Version](https://img.shields.io/packagist/php-v/n-car/rpc-php-toolkit.svg)](https://packagist.org/packages/n-car/rpc-php-toolkit)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-stable-green.svg)](https://github.com/n-car/rpc-php-toolkit/releases)
 
 PHP JSON-RPC 2.0 client/server toolkit with middleware, schema validation, batch processing, introspection, and optional RPC Toolkit Safe Mode.
 
