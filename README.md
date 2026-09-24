@@ -17,17 +17,46 @@ Standard JSON-RPC 2.0 is the default behavior. Enable RPC Toolkit Safe Mode only
 
 ## Installation
 
-Install from Packagist with Composer:
+### With Composer (recommended)
+
+Install the package from Packagist:
 
 ```bash
 composer require n-car/rpc-php-toolkit
 ```
 
+Composer installs the package, configures autoloading, and makes future updates
+straightforward.
+
+### Without Composer
+
+Composer is not required at runtime. Download the source archive from the
+[latest release](https://github.com/n-car/rpc-php-toolkit/releases/latest),
+extract it into your project (for example as `lib/rpc-php-toolkit`), and load
+the bundled autoloader:
+
+```php
+require_once __DIR__ . '/lib/rpc-php-toolkit/autoload.php';
+```
+
+When installing manually, update the library by replacing that directory with
+the contents of a newer release archive.
+
+Runtime requirements:
+
+- PHP 8.0 or newer
+- JSON and `mbstring` PHP extensions
+- `pdo_mysql` only when using `MySqlRateLimitStore`
+
 ## Quick Start
 
 ```php
 <?php
-require_once 'vendor/autoload.php';
+// Composer installation:
+require_once __DIR__ . '/vendor/autoload.php';
+
+// Manual installation: use this instead of the line above.
+// require_once __DIR__ . '/lib/rpc-php-toolkit/autoload.php';
 
 use RpcPhpToolkit\RpcEndpoint;
 
