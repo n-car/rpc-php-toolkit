@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-09-24
+
+### Added
+- MySQL-backed, atomic rate-limit storage through `MySqlRateLimitStore`
+- Executable per-method middleware with separate `before` and `after` phases
+
+### Changed
+- Middleware output now propagates parameters, handler context, authenticated users, and results
+- Production defaults disable batch requests and introspection
+- Wildcard CORS origins are rejected in production
+- Authentication tokens are accepted only from the `Authorization: Bearer` header
+
+### Fixed
+- Method-level middleware registered by `addMethod()` is now executed
+- Authenticated users are now available in the context received by RPC methods
+- Introspection now reports the published package version
+
+### Security
+- Removed authentication token support from query strings
+- Added persistent rate-limit counters for traditional PHP hosting
+
+## [1.0.2] - 2026-06-11
+
 ### Added
 - Official PHP client class in `src/Client/RpcClient.php` with full feature support
 - CORS middleware (`CorsMiddleware`) with preflight OPTIONS handling

@@ -15,7 +15,8 @@ class CorsMiddleware implements MiddlewareInterface
     private array $options;
     /**
      * @param array $options CORS configuration
-     *   - origin: Allowed origin(s) (string or array), default '*'
+     *   - environment: Runtime environment, defaults to APP_ENV or 'production'
+     *   - origin: Allowed origin(s) (string or array); no origins by default in production
      *   - methods: Allowed HTTP methods (array), default ['GET', 'POST', 'OPTIONS']
      *   - headers: Allowed headers (array), default ['Content-Type', 'Authorization']
      *   - credentials: Allow credentials (bool), default false
@@ -24,14 +25,30 @@ class CorsMiddleware implements MiddlewareInterface
      */
     public function __construct(array $options = [])
     {
+        $environment = (string) ($options['environment']
+            ?? getenv('APP_ENV')
+            ?: 'production');
+        $isProduction = in_array(strtolower($environment), ['production', 'prod'], true);
+
         $this->options = array_merge([
-            'origin' => '*',
+            'environment' => $environment,
+            'origin' => $isProduction ? [] : '*',
             'methods' => ['GET', 'POST', 'OPTIONS'],
             'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe-Enabled', 'X-RPC-Safe'],
             'credentials' => false,
             'maxAge' => 86400,
             'exposeHeaders' => []
         ], $options);
+
+        $hasUnrestrictedWildcard = $this->options['origin'] === '*'
+            || (
+                is_array($this->options['origin'])
+                && in_array('*', $this->options['origin'], true)
+            );
+
+        if ($isProduction && $hasUnrestrictedWildcard) {
+            throw new \InvalidArgumentException('Wildcard CORS origin is disabled in production');
+        }
     }
     /**
      * Execute CORS middleware (alias for handle)
@@ -64,7 +81,7 @@ class CorsMiddleware implements MiddlewareInterface
             }
         }
         // Handle preflight OPTIONS request
-        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
             $this->handlePreflight();
             exit(0); // Stop execution after preflight
         }
@@ -120,7 +137,7 @@ class CorsMiddleware implements MiddlewareInterface
         }
         // Wildcard pattern
         if (str_contains($pattern, '*')) {
-            $regex = '/^' . str_replace(['*', '.'], ['.*', '\.'], $pattern) . '$/';
+            $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/';
             return preg_match($regex, $origin) === 1;
         }
         return false;

@@ -86,22 +86,41 @@ class MiddlewareManager
             'context_keys' => array_keys($context)
         ]);
 
-        foreach ($this->middleware[$phase] as $middleware) {
+        return $this->executeStack($this->middleware[$phase], $context, $phase);
+    }
+
+    /**
+     * Executes an explicit middleware stack, used by method-level middleware.
+     *
+     * @param array<int, MiddlewareInterface> $middleware
+     */
+    public function executeStack(array $middleware, array $context, string $phase = 'before'): array
+    {
+        $this->logger?->debug("Executing middleware stack: {$phase}", [
+            'middleware_count' => count($middleware),
+            'context_keys' => array_keys($context)
+        ]);
+
+        foreach ($middleware as $item) {
+            if (!$item instanceof MiddlewareInterface) {
+                throw new \InvalidArgumentException('Middleware stack entries must implement MiddlewareInterface');
+            }
+
             try {
                 $startTime = microtime(true);
 
-                $context = $middleware->handle($context);
+                $context = $item->handle($context);
 
                 $executionTime = (microtime(true) - $startTime) * 1000;
 
                 $this->logger?->debug('Middleware executed', [
-                    'middleware' => get_class($middleware),
+                    'middleware' => get_class($item),
                     'phase' => $phase,
                     'execution_time_ms' => round($executionTime, 2)
                 ]);
             } catch (\Throwable $e) {
                 $this->logger?->error('Middleware error', [
-                    'middleware' => get_class($middleware),
+                    'middleware' => get_class($item),
                     'phase' => $phase,
                     'error' => $e->getMessage(),
                     'file' => $e->getFile(),

@@ -48,6 +48,18 @@ $input = file_get_contents('php://input');
 echo $rpc->handleRequest($input);
 ```
 
+The endpoint assumes `production` when `APP_ENV` is not set. Batch requests,
+introspection, and wildcard CORS are disabled by default in production. Enable
+features explicitly after reviewing their exposure:
+
+```php
+$rpc = new RpcEndpoint('/api/rpc', $context, [
+    'environment' => 'production',
+    'enableBatch' => false,
+    'enableIntrospection' => false,
+]);
+```
+
 ## PHP Client
 
 ```php
@@ -70,7 +82,7 @@ $client->notify('log.event', ['source' => 'php-client']);
 
 - JSON-RPC 2.0 calls, notifications, and batch requests
 - PHP endpoint and PHP HTTP client
-- Middleware for CORS, authentication, rate limiting, and custom request processing
+- Middleware for CORS, Bearer authentication, persistent rate limiting, and custom request processing
 - Schema validation for method parameters
 - Optional introspection through `__rpc.*` methods
 - Optional RPC Toolkit Safe Mode over HTTP headers

@@ -19,6 +19,8 @@ use RpcPhpToolkit\Exceptions\InternalErrorException;
  */
 class RpcEndpoint
 {
+    public const VERSION = '1.0.5';
+
     private string $endpoint;
     private array $methods = [];
     private ?Logger $logger = null;
@@ -44,9 +46,16 @@ class RpcEndpoint
     ) {
         $this->endpoint = $endpoint;
         $this->context = $context;
+
+        $environment = (string) ($options['environment']
+            ?? getenv('APP_ENV')
+            ?: 'production');
+        $isProduction = in_array(strtolower($environment), ['production', 'prod'], true);
+
         $this->options = array_merge([
+            'environment' => $environment,
             'sanitizeErrors' => true,
-            'enableBatch' => true,
+            'enableBatch' => !$isProduction,
             'enableLogging' => true,
             'enableValidation' => true,
             'enableMiddleware' => true,
@@ -125,7 +134,15 @@ class RpcEndpoint
 
         // Support both old signature (schema, middleware) and new signature (options array)
         $options = [];
-        if (is_array($schema) && isset($schema['exposeSchema'])) {
+        if (
+            is_array($schema)
+            && (
+                array_key_exists('schema', $schema)
+                || array_key_exists('exposeSchema', $schema)
+                || array_key_exists('middleware', $schema)
+                || (array_key_exists('description', $schema) && !array_key_exists('type', $schema))
+            )
+        ) {
             // New format: options object containing schema, exposeSchema, description, middleware
             $options = $schema;
             $schema = $options['schema'] ?? null;
@@ -261,7 +278,7 @@ class RpcEndpoint
         $this->addMethod("{$this->introspectionPrefix}.version", function ($params, $context) {
             return [
                 'toolkit' => 'rpc-php-toolkit',
-                'version' => '1.1.0',
+                'version' => self::VERSION,
                 'phpVersion' => PHP_VERSION
             ];
         });
@@ -396,15 +413,30 @@ class RpcEndpoint
 
             $methodConfig = $this->methods[$method];
 
+            $middlewareContext = [
+                'method' => $method,
+                'params' => $params,
+                'id' => $id,
+                'context' => $this->context,
+                'request' => $this->getRequestMetadata()
+            ];
+
             // Execute pre-processing middleware
             if ($this->middleware) {
-                $this->middleware->executeMiddleware('before', [
-                    'method' => $method,
-                    'params' => $params,
-                    'id' => $id,
-                    'context' => $this->context
-                ]);
+                $middlewareContext = $this->middleware->executeMiddleware('before', $middlewareContext);
+                $middlewareContext = $this->middleware->executeStack(
+                    $this->getMethodMiddlewareForPhase($methodConfig['middleware'], 'before'),
+                    $middlewareContext,
+                    'method.before'
+                );
             }
+
+            if (!isset($middlewareContext['params']) || !is_array($middlewareContext['params'])) {
+                throw new InvalidParamsException('Middleware must leave params as an array');
+            }
+
+            $params = $middlewareContext['params'];
+            $handlerContext = $this->buildHandlerContext($middlewareContext);
 
             // Validate parameters with schema
             if ($this->validator && $methodConfig['schema']) {
@@ -412,17 +444,27 @@ class RpcEndpoint
             }
 
             // Execute method
-            $result = $this->executeMethod($methodConfig['handler'], $params);
+            $result = $this->executeMethod($methodConfig['handler'], $params, $handlerContext);
 
             // Execute post-processing middleware
             if ($this->middleware) {
-                $this->middleware->executeMiddleware('after', [
+                $middlewareContext = array_merge($middlewareContext, [
                     'method' => $method,
                     'params' => $params,
                     'result' => $result,
                     'id' => $id,
-                    'context' => $this->context
+                    'context' => $handlerContext
                 ]);
+
+                $middlewareContext = $this->middleware->executeStack(
+                    $this->getMethodMiddlewareForPhase($methodConfig['middleware'], 'after'),
+                    $middlewareContext,
+                    'method.after'
+                );
+                $middlewareContext = $this->middleware->executeMiddleware('after', $middlewareContext);
+                if (array_key_exists('result', $middlewareContext)) {
+                    $result = $middlewareContext['result'];
+                }
             }
 
             // Notification request (no id)
@@ -442,16 +484,93 @@ class RpcEndpoint
     /**
      * Executes an RPC method
      */
-    private function executeMethod(callable $handler, array $params): mixed
+    private function executeMethod(callable $handler, array $params, mixed $context): mixed
     {
         // If parameters are associative array, pass as named arguments
         if ($this->isAssociativeArray($params)) {
-            return $handler($params, $this->context);
+            return $handler($params, $context);
         }
 
         // Otherwise pass as positional array + context
-        $args = array_merge($params, [$this->context]);
+        $args = array_merge($params, [$context]);
         return $handler(...$args);
+    }
+
+    /**
+     * Returns a method-level stack for a phase.
+     *
+     * A plain list is a before stack. Associative configuration may provide
+     * separate "before" and "after" lists.
+     *
+     * @return array<int, \RpcPhpToolkit\Middleware\MiddlewareInterface>
+     */
+    private function getMethodMiddlewareForPhase(array $middleware, string $phase): array
+    {
+        if ($this->isList($middleware)) {
+            return $phase === 'before' ? $middleware : [];
+        }
+
+        $stack = $middleware[$phase] ?? [];
+
+        if ($stack instanceof \RpcPhpToolkit\Middleware\MiddlewareInterface) {
+            return [$stack];
+        }
+
+        if (!is_array($stack)) {
+            throw new \InvalidArgumentException("Method middleware phase '{$phase}' must be an array");
+        }
+
+        return $stack;
+    }
+
+    /**
+     * Builds the context passed to an RPC handler from middleware output.
+     */
+    private function buildHandlerContext(array $middlewareContext): mixed
+    {
+        $context = $middlewareContext['context'] ?? $this->context;
+        $reserved = ['method', 'params', 'id', 'result', 'context', 'request'];
+        $metadata = [];
+        foreach ($middlewareContext as $key => $value) {
+            if (!in_array($key, $reserved, true)) {
+                $metadata[$key] = $value;
+            }
+        }
+
+        if ($context === null && $metadata !== []) {
+            $context = [];
+        }
+
+        if (!is_array($context)) {
+            return $context;
+        }
+
+        foreach ($metadata as $key => $value) {
+            $context[$key] = $value;
+        }
+
+        return $context;
+    }
+
+    /**
+     * Request data made available to middleware without exposing all server variables.
+     */
+    private function getRequestMetadata(): array
+    {
+        $headers = [];
+        $authorization = $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? null;
+
+        if (is_string($authorization) && $authorization !== '') {
+            $headers['Authorization'] = $authorization;
+        }
+
+        return [
+            'headers' => $headers,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            'method' => $_SERVER['REQUEST_METHOD'] ?? null
+        ];
     }
 
     /**
@@ -732,6 +851,11 @@ class RpcEndpoint
     private function isAssociativeArray(array $array): bool
     {
         return array_keys($array) !== range(0, count($array) - 1);
+    }
+
+    private function isList(array $array): bool
+    {
+        return $array === [] || array_keys($array) === range(0, count($array) - 1);
     }
 
     /**

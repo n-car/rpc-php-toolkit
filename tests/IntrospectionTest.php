@@ -17,6 +17,7 @@ class IntrospectionTest extends TestCase
         // Create endpoint with introspection enabled
         $this->endpoint = new RpcEndpoint('/rpc', ['test' => 'context'], [
             'enableIntrospection' => true,
+            'enableBatch' => true,
             'enableValidation' => true
         ]);
 
@@ -230,7 +231,7 @@ class IntrospectionTest extends TestCase
 
         $this->assertEquals('2.0', $response['jsonrpc']);
         $this->assertEquals('rpc-php-toolkit', $response['result']['toolkit']);
-        $this->assertArrayHasKey('version', $response['result']);
+        $this->assertSame('1.0.5', $response['result']['version']);
         $this->assertArrayHasKey('phpVersion', $response['result']);
         $this->assertEquals(PHP_VERSION, $response['result']['phpVersion']);
     }

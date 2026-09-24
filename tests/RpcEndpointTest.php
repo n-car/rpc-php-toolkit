@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 use RpcPhpToolkit\RpcEndpoint;
 use RpcPhpToolkit\Exceptions\MethodNotFoundException;
 use RpcPhpToolkit\Exceptions\InvalidRequestException;
+use RpcPhpToolkit\Middleware\AuthMiddleware;
+use RpcPhpToolkit\Middleware\MiddlewareInterface;
 
 class RpcEndpointTest extends TestCase
 {
@@ -112,15 +114,16 @@ class RpcEndpointTest extends TestCase
 
     public function testBatchRequest(): void
     {
-        $this->endpoint->addMethod('add', fn($params) => $params['a'] + $params['b']);
-        $this->endpoint->addMethod('multiply', fn($params) => $params['a'] * $params['b']);
+        $endpoint = new RpcEndpoint('/rpc', null, ['enableBatch' => true]);
+        $endpoint->addMethod('add', fn($params) => $params['a'] + $params['b']);
+        $endpoint->addMethod('multiply', fn($params) => $params['a'] * $params['b']);
 
         $batchRequest = json_encode([
             ['jsonrpc' => '2.0', 'method' => 'add', 'params' => ['a' => 2, 'b' => 3], 'id' => 1],
             ['jsonrpc' => '2.0', 'method' => 'multiply', 'params' => ['a' => 2, 'b' => 3], 'id' => 2]
         ]);
 
-        $response = json_decode($this->endpoint->handleRequest($batchRequest), true);
+        $response = json_decode($endpoint->handleRequest($batchRequest), true);
 
         $this->assertIsArray($response);
         $this->assertCount(2, $response);
@@ -147,6 +150,105 @@ class RpcEndpointTest extends TestCase
         $this->endpoint->handleRequest($request);
 
         $this->assertEquals(['test' => 'context'], $contextValue);
+    }
+
+    public function testAuthenticatedUserIsPassedToHandlerContext(): void
+    {
+        $previousAuthorization = $_SERVER['HTTP_AUTHORIZATION'] ?? null;
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer valid-token';
+
+        try {
+            $endpoint = new RpcEndpoint('/rpc');
+            $endpoint->getMiddleware()->add(new AuthMiddleware(
+                fn($token) => $token === 'valid-token' ? ['id' => 42] : null
+            ));
+            $endpoint->addMethod('user.current', fn($params, $context) => $context['authenticated_user']);
+
+            $response = json_decode($endpoint->handleRequest(json_encode([
+                'jsonrpc' => '2.0',
+                'method' => 'user.current',
+                'id' => 1
+            ])), true);
+
+            $this->assertSame(['id' => 42], $response['result']);
+        } finally {
+            if ($previousAuthorization === null) {
+                unset($_SERVER['HTTP_AUTHORIZATION']);
+            } else {
+                $_SERVER['HTTP_AUTHORIZATION'] = $previousAuthorization;
+            }
+        }
+    }
+
+    public function testMethodMiddlewareIsExecuted(): void
+    {
+        $middleware = new class implements MiddlewareInterface {
+            public function handle(array $context): array
+            {
+                $context['method_marker'] = 'executed';
+                $context['params']['value']++;
+                return $context;
+            }
+        };
+
+        $this->endpoint->addMethod(
+            'method.middleware',
+            fn($params, $context) => [
+                'value' => $params['value'],
+                'marker' => $context['method_marker'] ?? null
+            ],
+            ['middleware' => [$middleware]]
+        );
+
+        $response = json_decode($this->endpoint->handleRequest(json_encode([
+            'jsonrpc' => '2.0',
+            'method' => 'method.middleware',
+            'params' => ['value' => 1],
+            'id' => 1
+        ])), true);
+
+        $this->assertSame(['value' => 2, 'marker' => 'executed'], $response['result']);
+    }
+
+    public function testMethodAfterMiddlewareCanTransformResult(): void
+    {
+        $middleware = new class implements MiddlewareInterface {
+            public function handle(array $context): array
+            {
+                $context['result'] = strtoupper($context['result']);
+                return $context;
+            }
+        };
+
+        $this->endpoint->addMethod(
+            'method.after',
+            fn() => 'ok',
+            ['middleware' => ['after' => [$middleware]]]
+        );
+
+        $response = json_decode($this->endpoint->handleRequest(json_encode([
+            'jsonrpc' => '2.0',
+            'method' => 'method.after',
+            'id' => 1
+        ])), true);
+
+        $this->assertSame('OK', $response['result']);
+    }
+
+    public function testProductionDefaultsDisableBatchAndIntrospection(): void
+    {
+        $endpoint = new RpcEndpoint('/rpc', null, ['environment' => 'production']);
+
+        $this->assertFalse($endpoint->getOptions()['enableBatch']);
+        $this->assertFalse($endpoint->getOptions()['enableIntrospection']);
+    }
+
+    public function testDevelopmentDefaultEnablesBatch(): void
+    {
+        $endpoint = new RpcEndpoint('/rpc', null, ['environment' => 'development']);
+
+        $this->assertTrue($endpoint->getOptions()['enableBatch']);
+        $this->assertFalse($endpoint->getOptions()['enableIntrospection']);
     }
 
     public function testSchemaValidation(): void

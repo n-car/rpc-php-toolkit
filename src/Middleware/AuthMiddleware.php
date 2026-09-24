@@ -28,7 +28,7 @@ class AuthMiddleware implements MiddlewareInterface
     {
         $method = $context['method'] ?? '';
         // If method is in whitelist, pass through
-        if (!empty($this->allowedMethods) && in_array($method, $this->allowedMethods)) {
+        if (!empty($this->allowedMethods) && in_array($method, $this->allowedMethods, true)) {
             return $context;
         }
         // Extract authentication token
@@ -50,6 +50,14 @@ class AuthMiddleware implements MiddlewareInterface
             }
             if ($user) {
                 $context['authenticated_user'] = $user;
+
+                // RpcEndpoint passes this nested application context to handlers.
+                if (!isset($context['context'])) {
+                    $context['context'] = [];
+                }
+                if (is_array($context['context'])) {
+                    $context['context']['authenticated_user'] = $user;
+                }
             }
         }
         return $context;
@@ -57,18 +65,27 @@ class AuthMiddleware implements MiddlewareInterface
     private function extractToken(array $context): ?string
     {
         // Check context headers first (for testing)
-        if (isset($context['request']['headers']['Authorization'])) {
-            $authHeader = $context['request']['headers']['Authorization'];
-            if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
-                return $matches[1];
+        foreach (($context['request']['headers'] ?? []) as $name => $value) {
+            if (strcasecmp((string) $name, 'Authorization') === 0 && is_string($value)) {
+                return $this->parseBearerToken($value);
             }
         }
-        // Authorization header from $_SERVER
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-        if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+
+        // Authorization header from the web server. Some CGI/FastCGI setups
+        // expose it through REDIRECT_HTTP_AUTHORIZATION.
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? '';
+
+        return is_string($authHeader) ? $this->parseBearerToken($authHeader) : null;
+    }
+
+    private function parseBearerToken(string $header): ?string
+    {
+        if (preg_match('/^Bearer[ \t]+([^\s]+)$/i', trim($header), $matches) === 1) {
             return $matches[1];
         }
-        // Query parameter
-        return $_GET['token'] ?? null;
+
+        return null;
     }
 }

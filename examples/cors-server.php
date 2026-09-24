@@ -20,7 +20,8 @@ $rpc = new RpcEndpoint('/api/rpc', $context);
 // Add CORS middleware
 $rpc->getMiddleware()->add(
     new CorsMiddleware([
-        'origin' => '*',  // Allow all origins (or specify: ['https://example.com'])
+        'environment' => 'production',
+        'origin' => ['https://app.example.com'],
         'methods' => ['GET', 'POST', 'OPTIONS'],
         'headers' => ['Content-Type', 'Authorization', 'X-RPC-Safe-Enabled', 'X-RPC-Safe'],
         'credentials' => false,

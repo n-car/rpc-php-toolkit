@@ -7,7 +7,10 @@ namespace RpcPhpToolkit\Tests;
 use PHPUnit\Framework\TestCase;
 use RpcPhpToolkit\Middleware\MiddlewareManager;
 use RpcPhpToolkit\Middleware\RateLimitMiddleware;
+use RpcPhpToolkit\Middleware\RateLimitStoreInterface;
 use RpcPhpToolkit\Middleware\AuthMiddleware;
+use RpcPhpToolkit\Middleware\CorsMiddleware;
+use RpcPhpToolkit\Exceptions\AuthException;
 
 class MiddlewareTest extends TestCase
 {
@@ -82,6 +85,27 @@ class MiddlewareTest extends TestCase
         $rateLimiter->handle($context);
     }
 
+    public function testRateLimitStorePersistsAcrossMiddlewareInstances(): void
+    {
+        $store = new class implements RateLimitStoreInterface {
+            private int $requests = 0;
+
+            public function increment(string $key, int $timeWindow, int $now): array
+            {
+                return ['requests' => ++$this->requests, 'window_start' => $now];
+            }
+        };
+
+        (new RateLimitMiddleware(1, 60, 'ip', $store))->handle([
+            'request' => ['ip' => '127.0.0.1']
+        ]);
+
+        $this->expectException(\RpcPhpToolkit\Exceptions\RpcException::class);
+        (new RateLimitMiddleware(1, 60, 'ip', $store))->handle([
+            'request' => ['ip' => '127.0.0.1']
+        ]);
+    }
+
     public function testAuthMiddleware(): void
     {
         $authenticator = function($token) {
@@ -111,5 +135,52 @@ class MiddlewareTest extends TestCase
 
         $this->expectException(\RpcPhpToolkit\Exceptions\RpcException::class);
         $authMiddleware->handle($invalidContext);
+    }
+
+    public function testAuthMiddlewareDoesNotAcceptQueryStringToken(): void
+    {
+        $previousGet = $_GET;
+        $_GET['token'] = 'valid-token';
+
+        try {
+            $middleware = new AuthMiddleware(fn($token) => $token === 'valid-token');
+            $middleware->handle(['request' => ['headers' => []]]);
+            $this->fail('A query-string token must not authenticate a request');
+        } catch (AuthException $error) {
+            $this->assertSame('Authentication required', $error->getMessage());
+        } finally {
+            $_GET = $previousGet;
+        }
+    }
+
+    public function testAuthMiddlewareAddsUserToApplicationContext(): void
+    {
+        $middleware = new AuthMiddleware(fn($token) => ['id' => 42]);
+        $result = $middleware->handle([
+            'context' => ['application' => 'test'],
+            'request' => ['headers' => ['authorization' => 'Bearer valid-token']]
+        ]);
+
+        $this->assertSame(['id' => 42], $result['authenticated_user']);
+        $this->assertSame(['id' => 42], $result['context']['authenticated_user']);
+    }
+
+    public function testWildcardCorsIsRejectedInProduction(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new CorsMiddleware(['environment' => 'production', 'origin' => '*']);
+    }
+
+    public function testDevelopmentCorsCanUseWildcard(): void
+    {
+        $middleware = new CorsMiddleware(['environment' => 'development']);
+
+        $this->assertSame('*', $middleware->getOptions()['origin']);
+    }
+
+    public function testWildcardCorsArrayIsRejectedInProduction(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new CorsMiddleware(['environment' => 'production', 'origin' => ['*']]);
     }
 }

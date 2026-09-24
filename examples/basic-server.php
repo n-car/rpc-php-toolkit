@@ -33,6 +33,7 @@ $context = [
 
 // Create the RPC endpoint
 $rpc = new RpcEndpoint('/api/rpc', $context, [
+    'environment' => 'development', // This example exposes debug features
     'enableLogging' => true,
     'enableBatch' => true,
     'enableValidation' => true,
@@ -47,7 +48,7 @@ $rpc = new RpcEndpoint('/api/rpc', $context, [
 
 // Add middleware
 if ($rpc->getMiddleware()) {
-    // Rate limiting: max 100 requests per minute per IP
+    // Development-only in-memory limiter. Use MySqlRateLimitStore in production.
     $rpc->getMiddleware()->add(new RateLimitMiddleware(100, 60, 'ip'), 'before');
     
     // Authentication for protected methods
@@ -148,8 +149,8 @@ $rpc->addMethod('test.error', function($params, $context) {
 
 // ========== HTTP REQUEST HANDLING ==========
 
-// CORS headers
-header('Access-Control-Allow-Origin: *');
+// Development CORS headers. Configure an exact application origin in production.
+header('Access-Control-Allow-Origin: http://localhost:3000');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json');
